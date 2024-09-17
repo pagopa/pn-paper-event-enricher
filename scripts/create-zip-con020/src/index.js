@@ -9,12 +9,12 @@ const { SafeStorageClient } = require("./libs/SafeStorageClient");
 
 async function main() {
     const safeStorageUrl = process.env.SAFESTORAGE_URL;
+    const bucketDestination = process.env.BUCKET_DESTINATION;
     const { paId, fileName, envName } = getArguments();
     console.log('paId =', paId, 'fileName =', fileName, 'envName =', envName);
 
     const awsClient = new AwsClientsWrapper(envName);
     const safeStorageClient = new SafeStorageClient(safeStorageUrl);
-
 
     const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) {
@@ -43,17 +43,7 @@ async function main() {
             const formattedFileKey = printedPdf.replace("safestorage://", "");
             const presignedUrl =  await safeStorageClient.getPresignedDownloadUrl(formattedFileKey);
             const fileResponse = await safeStorageClient.downloadFile(presignedUrl);
-            const fileName = path.basename(formattedFileKey);
-
-            const filePath = path.join(tempDir, fileName);
-            const writer = fs.createWriteStream(filePath);
-
-            fileResponse.data.pipe(writer);
-
-            await new Promise((resolve, reject) => {
-                writer.on('finish', resolve);
-                writer.on('error', reject);
-            });
+            const filePath = await uploadToTmpDir(fileResponse, formattedFileKey, tempDir);
 
             downloadedFiles.push(filePath);
         }
@@ -64,11 +54,18 @@ async function main() {
     downloadedFiles.forEach(file => {
         zip.addLocalFile(file);
     });
-    const zipPath = path.join(__dirname, new Date().toISOString() + '.zip');
+    const zipFileName =  paId + '_' + new Date().toISOString() + '.zip';
+    const zipPath = path.join(__dirname, zipFileName);
     zip.writeZip(zipPath);
+
+    // Caricamento dello zip su S3
+    const zipBuffer = fs.readFileSync(zipPath);
+    await awsClient.uploadFileToS3(bucketDestination, zipFileName, zipBuffer, 'application/zip');
+    console.log(`ZIP file successfully uploaded to S3:: ${zipFileName}`);
 
     // Rimuovi i file temporanei
     fs.rmSync(tempDir, { recursive: true });
+    fs.unlinkSync(zipPath);
 }
 
 async function readSourceFile(awsClient, fileName) {
@@ -87,6 +84,22 @@ async function readSourceFile(awsClient, fileName) {
         throw 'Missing source bucket and source test file';
     }
     return fileContent;
+}
+
+async function uploadToTmpDir(fileResponse, formattedFileKey, tempDir) {
+    const fileName = path.basename(formattedFileKey);
+
+    const filePath = path.join(tempDir, fileName);
+    const writer = fs.createWriteStream(filePath);
+
+    fileResponse.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+    });
+
+    return filePath;
 }
 
 main().then();

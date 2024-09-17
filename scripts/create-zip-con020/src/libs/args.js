@@ -3,7 +3,7 @@ const { parseArgs } = require('util');
 function getArguments() {
     const args = [
         { name: "paId", mandatory: true, subcommand: [] },
-        { name: "fileName", mandatory: true, subcommand: [] },
+        { name: "fileName", mandatory: false, subcommand: [] },
         { name: "envName", mandatory: true, subcommand: [] }
     ];
 

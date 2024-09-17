@@ -1,5 +1,5 @@
 const { fromIni } = require("@aws-sdk/credential-provider-ini");
-const { S3Client, HeadObjectCommand, ListBucketsCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const {
   DynamoDBClient,
   ScanCommand,
@@ -61,6 +61,17 @@ class AwsClientsWrapper {
       Body.on('error', reject);
       Body.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
     });
+  }
+
+  async uploadFileToS3(bucketName, fileName, fileBuffer, contentType) {
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: fileName,
+      Body: fileBuffer,
+      ContentType: contentType
+    });
+
+    await this._s3Client.send(command);
   }
 
 
