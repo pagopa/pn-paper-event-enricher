@@ -1,4 +1,4 @@
-package it.pagopa.pn.template;
+package it.pagopa.pn.paper.event.enricher;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.core.io.ClassPathResource;
