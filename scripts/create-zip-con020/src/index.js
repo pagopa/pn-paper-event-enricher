@@ -23,15 +23,19 @@ async function main() {
 
     // Legge il file sorgente e lo divide in righe
     const fileContent = await readSourceFile(awsClient, fileName);
-    const events = fileContent.trim().split('\n').map(JSON.parse);
+
+    // Suddividi il file in righe e parsa ciascuna riga
+    const events = fileContent.trim().split('\n').map(line => {
+        const parsedLine = JSON.parse(line);
+        return JSON.parse(parsedLine.Body);
+    });
     console.log('Reading', events.length, 'events from file')
 
     // Array per mantenere traccia dei file scaricati
     const downloadedFiles = [];
 
     for(const event of events) {
-        const newImage = event.dynamodb.NewImage;
-        const iun = newImage.metadata.M.iun.S;
+        const iun = event.iun;
         console.log("reading iun", iun);
         const notification = await awsClient.getNotification(iun);
         if(notification == null) {
@@ -39,7 +43,7 @@ async function main() {
         }
         if(paId === notification.senderPaId.S) {
             console.log('Processing of IUN:', iun);
-            const printedPdf = newImage.printedPdf && newImage.printedPdf.S;
+            const printedPdf = event.printedPdf;
             const formattedFileKey = printedPdf.replace("safestorage://", "");
             const presignedUrl =  await safeStorageClient.getPresignedDownloadUrl(formattedFileKey);
             const fileResponse = await safeStorageClient.downloadFile(presignedUrl);
