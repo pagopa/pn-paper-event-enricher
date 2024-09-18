@@ -1,4 +1,4 @@
-package it.pagopa.pn.template;
+package it.pagopa.pn.paper.event.enricher;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -7,11 +7,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
-public class TemplateApplication {
+public class PaperEventEnricherApplication {
 
 
     public static void main(String[] args) {
-        SpringApplication.run(TemplateApplication.class, args);
+        SpringApplication.run(PaperEventEnricherApplication.class, args);
     }
 
 
@@ -21,7 +21,7 @@ public class TemplateApplication {
 
         @GetMapping("")
         public String home() {
-            return "Sono Vivo!";
+            return "";
         }
     }
 }

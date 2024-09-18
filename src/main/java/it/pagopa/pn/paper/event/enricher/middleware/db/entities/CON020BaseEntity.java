@@ -1,4 +1,4 @@
-package it.pagopa.pn.template.middleware.db.entities;
+package it.pagopa.pn.paper.event.enricher.middleware.db.entities;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

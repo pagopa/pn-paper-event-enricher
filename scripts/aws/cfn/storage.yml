@@ -24,11 +24,156 @@ Parameters:
     Type: String
     Description: 'Where to send CDC'
 
+  AlarmSNSTopicArn:
+    Type: String
+    Description: 'Topic alarm ARN'
+
+  AlarmSNSTopicName:
+    Type: String
+    Description: 'Topic alarm name'
+
 Resources:
-    NullResource:
-        Type: AWS::CloudFormation::WaitConditionHandle
+  PaperEventEnrichmentTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub '${ProjectName}-PaperChannelEventEnrichment'
+      AttributeDefinitions:
+        - AttributeName: "hashKey"
+          AttributeType: "S"
+        - AttributeName: "sortKey"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "hashKey"
+          KeyType: "HASH"
+        - AttributeName: "sortKey"
+          KeyType: "RANGE"
+      BillingMode: "PAY_PER_REQUEST"
+      KinesisStreamSpecification:
+        StreamArn: !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: "ttl"
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  PaperEventEnrichmentCdc:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
+      Parameters:
+        StreamName: !Sub "${ProjectName}-paper-event-enrichment-cdc"
+        # PROVISIONED MODE: follow shard configuration
+        StreamShardsCount: 0
+        StreamRetentionHours: 720
+        RequireManagedKey: false
+        # USES SNSTopic used for all Kinesis alarms
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+        StandardAlarmThresholdsMs: 172800000 # 2 days
+        OnCallAlarmThresholdsMs: 432000000  # 5 days
+
+  PaperEventCdcToArchivesQueuePipe:
+    Type: 'AWS::Pipes::Pipe'
+    Properties:
+      Name: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
+      Source: !GetAtt "PaperEventEnrichmentCdc.Outputs.KinesisStreamArn"
+      SourceParameters:
+        KinesisStreamParameters:
+          BatchSize: 1
+          StartingPosition: LATEST
+        FilterCriteria:
+          Filters:
+            - Pattern: |
+                {
+                  "data": {
+                    "eventName": ["INSERT"],
+                    "dynamodb": {
+                      "NewImage": {
+                        "entityName": {"S": [ "CON020Archive"] }
+                      }
+                    }
+                  }
+                }
+      TargetParameters:
+        InputTemplate: |
+          {
+            "archiveFileKey": <$.data.dynamodb.NewImage.archiveFileKey.S>,
+            "archiveStatus": <$.data.dynamodb.NewImage.archiveStatus.S>
+          }
+      Target: !GetAtt 'PaperArchivesQueue.Outputs.QueueARN'
+
+  PipesEnqueueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: pipes.amazonaws.com
+            Condition:
+              StringLike:
+                'aws:SourceArn': !Sub 'arn:${AWS::Partition}:pipes:${AWS::Region}:${AWS::AccountId}:pipe/${ProjectName}-enriched-paper-event-to-*'
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+        Version: "2012-10-17"
+      Policies:
+        - PolicyName: putEventIntoQueues
+          PolicyDocument:
+            Statement:
+              - Sid: sourcePermissions
+                Action:
+                  - 'kinesis:DescribeStream'
+                  - 'kinesis:GetRecords'
+                  - 'kinesis:GetShardIterator'
+                  - 'kinesis:ListStreams'
+                  - 'kinesis:ListShards'
+                Effect: Allow
+                Resource:
+                  - !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
+              - Sid: targetPermissions
+                Action:
+                  - sqs:ChangeMessageVisibility
+                  - sqs:ChangeMessageVisibilityBatch
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                  - sqs:SendMessage
+                  - sqs:SendMessageBatch
+                Effect: Allow
+                Resource:
+                  - !GetAtt PaperArchivesQueue.Outputs.QueueARN
+
+  PaperArchivesQueue:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+      Parameters:
+        QueueName: !Sub '${ProjectName}-paper-archives'
+        AlarmSNSTopicName: !Ref AlarmSNSTopicName
+        VisibilityTimeout: 900
+        MaxReceiveCount: 1
+        DelaySeconds: 1
+
 
 Outputs:
-    SampleOutput:
-      Description: A Sample Output
-      Value: 'na'
+  PaperEventEnrichmentTableName:
+    Description: Name of dynamodb table containing paper event enrichments
+    Value: !Ref PaperEventEnrichmentTable
+
+  PaperEventEnrichmentTableArn:
+    Description: Arn of dynamodb table containing paper event enrichments
+    Value: !Sub '${PaperEventEnrichmentTable.Arn}'
+
+  PaperArchivesQueueName:
+    Value: !GetAtt PaperArchivesQueue.Outputs.QueueName
+
+  PaperArchivesQueueARN:
+    Value: !GetAtt PaperArchivesQueue.Outputs.QueueARN
+

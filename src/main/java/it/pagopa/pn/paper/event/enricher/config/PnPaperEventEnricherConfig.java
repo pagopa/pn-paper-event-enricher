@@ -1,4 +1,4 @@
-package it.pagopa.pn.template.config;
+package it.pagopa.pn.paper.event.enricher.config;
 
 import it.pagopa.pn.commons.conf.SharedAutoConfiguration;
 import lombok.Data;
@@ -7,19 +7,23 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration
-@ConfigurationProperties( prefix = "pn.template")
+@ConfigurationProperties( prefix = "pn.paper.event.enricher")
 @Data
 @Import({SharedAutoConfiguration.class})
-public class PnTemplateConfigs {
-
+public class PnPaperEventEnricherConfig {
 
     private String safeStorageBaseUrl;
+    private Dao dao;
+    private Sqs sqs;
 
-
-    
     @Data
-    public static class Topics {
+    public static class Dao {
+        private String paperEventEnrichmentTable;
+    }
 
+    @Data
+    public static class Sqs {
+        private String paperArchivesQueueName;
     }
 
 
