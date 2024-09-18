@@ -147,6 +147,7 @@ Resources:
                 Effect: Allow
                 Resource:
                   - !GetAtt PaperArchivesQueue.Outputs.QueueARN
+                  - !GetAtt EnrichedEventsQueue.Outputs.QueueARN
 
   PaperArchivesQueue:
     Type: AWS::CloudFormation::Stack
@@ -160,6 +161,222 @@ Resources:
         VisibilityTimeout: 900
         MaxReceiveCount: 1
         DelaySeconds: 1
+
+  PaperEventCdcToEnrichedEventsQueuePipe:
+    Type: 'AWS::Pipes::Pipe'
+    Properties:
+      Name: !Sub "${ProjectName}-enriched-paper-event-to-output-queue"
+      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
+      Source: !GetAtt "PaperEventEnrichmentCdc.Outputs.KinesisStreamArn"
+      SourceParameters:
+        KinesisStreamParameters:
+          BatchSize: 1
+          StartingPosition: LATEST
+        FilterCriteria:
+          Filters:
+            - Pattern: |
+                {
+                  "data": {
+                    "eventName": [ "MODIFY" ],
+                    "dynamodb": {
+                      "NewImage": {
+                        "entityName": { "S": [ "CON020Enriched"] },
+                        "printedPdf": { "S": [ { "exists": true } ] },
+                        "metadataPresent": { "BOOL": [ true ] }
+                      }
+                    }
+                  }
+                }
+      TargetParameters:
+        InputTemplate: |
+          {
+            "entityName": <$.data.dynamodb.NewImage.entityName.S>,
+            "recordCreationTime": <$.data.dynamodb.NewImage.recordCreationTime.S>,
+            "lastModificationTime": <$.data.dynamodb.NewImage.lastModificationTime.S>,
+            "archiveFileKey": <$.data.dynamodb.NewImage.metadata.M.archiveFileKey.S>,
+            "eventTime": <$.data.dynamodb.NewImage.metadata.M.eventTime.S>,
+            "generationTime": <$.data.dynamodb.NewImage.metadata.M.generationTime.S>,
+            "iun": <$.data.dynamodb.NewImage.metadata.M.iun.S>,
+            "recIndex": <$.data.dynamodb.NewImage.metadata.M.recIndex.N>,
+            "registeredLetterCode": <$.data.dynamodb.NewImage.metadata.M.registeredLetterCode.S>,
+            "sendRequestId": <$.data.dynamodb.NewImage.metadata.M.sendRequestId.S>,
+            "printedPdf": <$.data.dynamodb.NewImage.printedPdf.S>
+          }
+      Target: !GetAtt 'EnrichedEventsQueue.Outputs.QueueARN'
+
+  EnrichedEventsQueue:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      # TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"  # RIPRISTINARE
+      TemplateURL: "fragments/sqs-queue.yaml"
+      Parameters:
+        QueueName: !Sub '${ProjectName}-paper-event-enrichment-output'
+        AlarmSNSTopicName: !Ref AlarmSNSTopicName
+        VisibilityTimeout: 60
+        MaxReceiveCount: 10
+        DelaySeconds: 1
+
+  PipeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
+      AlarmDescription: "Alarm on pipe failure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      DatapointsToAlarm: 5
+      EvaluationPeriods: 10
+      Threshold: 1
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionThrottled
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionTimeout
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m4
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionPartiallyFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m5
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: Invocations
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: e1
+          Expression: ( m1 + m2 + m3 + m4 ) / m5
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
+          ReturnData: False
+        - Id: e2
+          Expression: !Sub IF( e1 > 0.1 AND m5 > 0, 1, 0)
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
+      AlarmActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      InsufficientDataActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      OKActions:
+        - !Sub '${AlarmSNSTopicArn}'
+
+  OnCallPipeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "oncall-${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
+      AlarmDescription: "OnCall Alarm on pipe failure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      DatapointsToAlarm: 5
+      EvaluationPeriods: 10
+      Threshold: 1
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionThrottled
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionTimeout
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m4
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionPartiallyFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m5
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: Invocations
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: e1
+          Expression: ( m1 + m2 + m3 + m4 ) / m5
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
+          ReturnData: False
+        - Id: e2
+          Expression: !Sub IF( e1 > 0.2 AND m5 > 20, 1, 0)
+          Label: !Sub "OnCall-${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
+      AlarmActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      InsufficientDataActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      OKActions:
+        - !Sub '${AlarmSNSTopicArn}'
 
 
 Outputs:
