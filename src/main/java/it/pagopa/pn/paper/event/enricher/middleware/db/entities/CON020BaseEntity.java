@@ -8,7 +8,6 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 
 import java.time.Instant;
 
-@DynamoDbBean
 @Setter
 @ToString
 @EqualsAndHashCode
