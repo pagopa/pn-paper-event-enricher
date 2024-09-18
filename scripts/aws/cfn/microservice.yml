@@ -62,7 +62,7 @@ Parameters:
   LogAlarmStrategy:
     Type: String
     Default: 'FATAL'
-  
+
   Version:
     Type: String
     Description: 'keep track of used projects commitIds'
@@ -123,6 +123,16 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !Sub "${PaperEventEnrichmentTableArn}"
+              - !Sub "${PaperEventEnrichmentTableArn}/*"
+          - Effect: Allow
+            Action:
               - sqs:SendMessage
               - sqs:GetQueueUrl
               - sqs:ChangeMessageVisibility
@@ -133,7 +143,7 @@ Resources:
               - !Ref PaperArchivesQueueARN
 
   # CloudWatch dashboard
-  AddressManagerMicroserviceCloudWatchDashboard:
+  PaperEventEnricherMicroserviceCloudWatchDashboard:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/microservice-cloudwatch-dashboard.yaml"
@@ -145,6 +155,9 @@ Resources:
         LogGroupsNames: !Join
           - ','
           - - !Ref EcsLogGroup
+        DynamoDBTableNames: !Join
+          - ','
+          - - !Ref PaperEventEnrichmentTableName
         QueueArns: !Join
           - ','
           - - !Ref PaperArchivesQueueARN
