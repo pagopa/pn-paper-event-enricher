@@ -7,10 +7,10 @@
 		<version>2.1.1</version>
 		<relativePath />
 	</parent>
-	<artifactId>pn-template-ms-be</artifactId>
+	<artifactId>pn-paper-event-enricher</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>pn-template-ms-be</name>
-	<description>A template for a PN Backend Microservice</description>
+	<name>pn-paper-event-enricher</name>
+	<description>Pn paper event enricher microservice</description>
 	<scm>
 		<connection>${git.conn}</connection>
 		<developerConnection>${git.devConn}</developerConnection>

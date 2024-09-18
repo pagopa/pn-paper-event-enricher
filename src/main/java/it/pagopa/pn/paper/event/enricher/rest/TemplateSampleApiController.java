@@ -1,4 +1,4 @@
-package it.pagopa.pn.template.rest;
+package it.pagopa.pn.paper.event.enricher.rest;
 
 import it.pagopa.pn.template.generated.openapi.server.v1.api.TemplateSampleApi;
 import lombok.extern.slf4j.Slf4j;
