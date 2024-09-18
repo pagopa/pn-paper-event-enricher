@@ -6,6 +6,8 @@ import lombok.Setter;
 import lombok.ToString;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 
+import java.time.Instant;
+
 @DynamoDbBean
 @Setter
 @ToString
@@ -23,11 +25,11 @@ public class CON020BaseEntity {
     @Getter(onMethod = @__({@DynamoDbSortKey, @DynamoDbAttribute(COL_SORT_KEY)}))
     private String sortKey;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_TTL)}))
-    private Number ttl;
+    private long ttl;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_RECORD_CREATION_TIME)}))
-    private String recordCreationTime;
+    private Instant recordCreationTime;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_LAST_MODIFICATION_TIME)}))
-    private String lastModificationTime;
+    private Instant lastModificationTime;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_ENTITY_NAME)}))
     private String entityName;
 }
