@@ -218,7 +218,6 @@ Resources:
         MaxReceiveCount: 10
         DelaySeconds: 1
 
-
   PipeAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
