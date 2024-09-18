@@ -7,10 +7,10 @@
 		<version>2.1.1</version>
 		<relativePath />
 	</parent>
-	<artifactId>pn-template-ms-be</artifactId>
+	<artifactId>pn-paper-event-enricher</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>pn-template-ms-be</name>
-	<description>A template for a PN Backend Microservice</description>
+	<name>pn-paper-event-enricher</name>
+	<description>Pn paper event enricher microservice</description>
 	<scm>
 		<connection>${git.conn}</connection>
 		<developerConnection>${git.devConn}</developerConnection>
@@ -19,7 +19,19 @@
   </scm>
 
 	<dependencies>
-
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-function-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.idealo.spring</groupId>
+            <artifactId>spring-cloud-stream-binder-sqs</artifactId>
+            <version>1.9.0</version>
+        </dependency>
 		<dependency>
 			<groupId>it.pagopa.pn</groupId>
 			<artifactId>pn-commons</artifactId>
