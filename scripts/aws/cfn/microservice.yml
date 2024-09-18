@@ -123,7 +123,7 @@ Resources:
               - !Sub "${PaperEventEnrichmentTableArn}/*"
 
   # CloudWatch dashboard
-  AddressManagerMicroserviceCloudWatchDashboard:
+  PaperEventEnricherMicroserviceCloudWatchDashboard:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/microservice-cloudwatch-dashboard.yaml"
