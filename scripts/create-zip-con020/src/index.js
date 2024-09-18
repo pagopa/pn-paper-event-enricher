@@ -1,11 +1,9 @@
-// Importazione dei moduli necessari
 const fs = require('fs');
-const axios = require('axios');
 const path = require('path');
-const AdmZip = require('adm-zip');
 const getArguments = require('./libs/args');
 const { AwsClientsWrapper } = require("./libs/AwsClientWrapper");
 const { SafeStorageClient } = require("./libs/SafeStorageClient");
+const { FileUtil } = require("./libs/FileUtil");
 
 async function main() {
     const safeStorageUrl = process.env.SAFESTORAGE_URL;
@@ -15,6 +13,7 @@ async function main() {
 
     const awsClient = new AwsClientsWrapper(envName);
     const safeStorageClient = new SafeStorageClient(safeStorageUrl);
+    const fileUtil = new FileUtil;
 
     const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) {
@@ -33,6 +32,7 @@ async function main() {
 
     // Array per mantenere traccia dei file scaricati
     const downloadedFiles = [];
+    const csvData = [];
 
     for(const event of events) {
         const iun = event.iun;
@@ -43,6 +43,11 @@ async function main() {
         }
         if(paId === notification.senderPaId.S) {
             console.log('Processing of IUN:', iun);
+            const recIndex = event.recIndex;
+            const sendRequestId = editSendRequestIdWithSendPrefix(event.sendRequestId);
+            const generationTime = event.generationTime;
+            const eventTime = event.eventTime;
+            const registeredLetterCode = event.registeredLetterCode;
             const printedPdf = event.printedPdf;
             const formattedFileKey = printedPdf.replace("safestorage://", "");
             const presignedUrl =  await safeStorageClient.getPresignedDownloadUrl(formattedFileKey);
@@ -50,20 +55,24 @@ async function main() {
             const filePath = await uploadToTmpDir(fileResponse, formattedFileKey, tempDir);
 
             downloadedFiles.push(filePath);
+
+            // Aggiungi i dati per il CSV
+            csvData.push({
+                iun,
+                recIndex,
+                sendRequestId,
+                generationTime,
+                eventTime,
+                registeredLetterCode,
+                printedPdf
+            });
         }
     }
 
-    // Creazione dello zip dei file scaricati
-    const zip = new AdmZip();
-    downloadedFiles.forEach(file => {
-        zip.addLocalFile(file);
-    });
-    const zipFileName =  paId + '_' + new Date().toISOString() + '.zip';
-    const zipPath = path.join(__dirname, zipFileName);
-    zip.writeZip(zipPath);
-
     // Caricamento dello zip su S3
-    const zipBuffer = fs.readFileSync(zipPath);
+    const zipFileName =  'dump_pn-paper-event-enrichment-output_' + paId + '_' + new Date().toISOString() + '.zip';
+    const zipPath = path.join(__dirname, zipFileName);
+    const zipBuffer = fileUtil.buildZipFile(downloadedFiles, tempDir, zipPath, csvData);
     await awsClient.uploadFileToS3(bucketDestination, zipFileName, zipBuffer, 'application/zip');
     console.log(`ZIP file successfully uploaded to S3:: ${zipFileName}`);
 
@@ -104,6 +113,20 @@ async function uploadToTmpDir(fileResponse, formattedFileKey, tempDir) {
     });
 
     return filePath;
+}
+
+function editSendRequestIdWithSendPrefix(sendRequestId) {
+    let sendRequestWithSendPrefix;
+    // Modifica il sendRequestId
+    if (sendRequestId.startsWith('PREPARE_ANALOG')) {
+        sendRequestWithSendPrefix = sendRequestId.replace('PREPARE_ANALOG', 'SEND_ANALOG');
+    } else if (sendRequestId.startsWith('PREPARE_SIMPLE')) {
+        sendRequestWithSendPrefix = sendRequestId.replace('PREPARE_SIMPLE', 'SEND_SIMPLE');
+    }
+
+    // Rimuovi la parte '.PCRETRY_<n>'
+    sendRequestWithSendPrefix = sendRequestWithSendPrefix.replace(/\.PCRETRY_\d+$/, '');
+    return sendRequestWithSendPrefix;
 }
 
 main().then();
