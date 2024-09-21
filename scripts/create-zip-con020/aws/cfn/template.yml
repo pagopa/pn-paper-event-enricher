@@ -58,9 +58,9 @@ Resources:
       Source:
         Type: GITHUB
         Location: https://github.com/pagopa/pn-paper-event-enricher.git
-        BuildSpec: scripts/create-zip-con020/buildspec.yml # Indica il percorso del buildspec nel repo
+        BuildSpec: scripts/create-zip-con020/aws/cfn/buildspec.yml
         ReportBuildStatus: true
-      SourceVersion: feature/PN-12699 # Qui specifica il branch specifico
+      SourceVersion: feature/PN-12699 # TODO eliminare
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/standard:6.0
