@@ -84,18 +84,23 @@ Parameters:
   PaId:
     Type: String
     Description: "PA ID"
+    Default: ""
   BucketSource:
     Type: String
     Description: "Bucket S3 di input"
+    Default: ""
   S3KeySource:
     Type: String
     Description: "Key del file S3"
+    Default: ""
   BucketDestination:
     Type: String
     Description: "Bucket S3 di output"
+    Default: ""
   SafeStorageUrl:
     Type: String
     Description: "Safe Storage URL"
+    Default: ""
 
 Outputs:
   CodeBuildProjectName:
