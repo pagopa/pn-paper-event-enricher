@@ -10,7 +10,10 @@ async function main() {
     const safeStorageUrl = process.env.SAFESTORAGE_URL;
     const bucketDestination = process.env.BUCKET_DESTINATION;
     const paId = process.env.PA_ID ? process.env.PA_ID : paIdArg;
-    console.log('paId =', paId, 'fileName =', fileName, 'envName =', envName);
+    const bucketSource = process.env.BUCKET_SOURCE;
+    const s3KeySource = process.env.S3_KEY_SOURCE;
+    console.log('paId =', paId, 'fileName =', fileName, 'envName =', envName, 'bucketSource =', bucketSource,
+        's3KeySource =', s3KeySource, 'bucketDestination =', bucketDestination, 'safeStorageUrl =', safeStorageUrl);
 
     const awsClient = new AwsClientsWrapper(envName);
     const safeStorageClient = new SafeStorageClient(safeStorageUrl);
@@ -22,7 +25,7 @@ async function main() {
     }
 
     // Legge il file sorgente e lo divide in righe
-    const fileContent = await readSourceFile(awsClient, fileName);
+    const fileContent = await readSourceFile(awsClient, fileName, bucketSource, s3KeySource);
 
     // Suddividi il file in righe e parsa ciascuna riga
     const events = fileContent.trim().split('\n').map(line => {
@@ -82,9 +85,7 @@ async function main() {
     fs.unlinkSync(zipPath);
 }
 
-async function readSourceFile(awsClient, fileName) {
-    const bucketSource = process.env.BUCKET_SOURCE;
-    const s3KeySource = process.env.S3_KEY_SOURCE;
+async function readSourceFile(awsClient, fileName, bucketSource, s3KeySource) {
     let fileContent;
     if(bucketSource && s3KeySource) {
         console.log('Reading from S3 bucket', bucketSource);
