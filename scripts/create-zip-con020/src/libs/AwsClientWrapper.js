@@ -28,8 +28,14 @@ async function sleep(ms) {
 class AwsClientsWrapper {
   // FIXME parametri profilo e regione
   constructor(env /* dev, test, uat, prod */) {
-    this._s3Client = new S3Client(awsClientCfg(env, "core"));
-    this._dynamoClient = new DynamoDBClient(awsClientCfg(env, "core"));
+    if(env) {
+      this._s3Client = new S3Client(awsClientCfg(env, "core"));
+      this._dynamoClient = new DynamoDBClient(awsClientCfg(env, "core"));
+    }
+    else {
+      this._s3Client = new S3Client();
+      this._dynamoClient = new DynamoDBClient();
+    }
   }
 
 

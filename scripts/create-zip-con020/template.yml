@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CodeBuild project to run JS script from GitHub
+
+Resources:
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildS3Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::bucket-test-con020
+                  - arn:aws:s3:::bucket-test-con020/*
+#                  - arn:aws:s3:::your-output-bucket-name
+#                  - arn:aws:s3:::your-output-bucket-name/*
+        - PolicyName: CodeBuildCloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - arn:aws:logs:*:*:log-group:/aws/codebuild/*
+                  - arn:aws:logs:*:*:log-group:/aws/codebuild/*:*
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: CreateZipCon020
+      Source:
+        Type: GITHUB
+        Location: https://github.com/pagopa/pn-paper-event-enricher.git
+        BuildSpec: scripts/create-zip-con020/buildspec.yml # Indica il percorso del buildspec nel repo
+        ReportBuildStatus: true
+      SourceVersion: feature/PN-12699 # Qui specifica il branch specifico
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:6.0
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: PA_ID
+            Value: !Ref PaId
+          - Name: BUCKET_SOURCE
+            Value: !Ref BucketSource
+          - Name: S3_KEY_SOURCE
+            Value: !Ref S3KeySource
+          - Name: BUCKET_DESTINATION
+            Value: !Ref BucketDestination
+          - Name: SAFESTORAGE_URL
+            Value: !Ref SafeStorageUrl
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+
+Parameters:
+  PaId:
+    Type: String
+    Description: "PA ID"
+  BucketSource:
+    Type: String
+    Description: "Bucket S3 di input"
+  S3KeySource:
+    Type: String
+    Description: "Key del file S3"
+  BucketDestination:
+    Type: String
+    Description: "Bucket S3 di output"
+  SafeStorageUrl:
+    Type: String
+    Description: "Safe Storage URL"
+
+Outputs:
+  CodeBuildProjectName:
+    Value: !Ref CodeBuildProject
+    Description: "Nome del progetto CodeBuild"

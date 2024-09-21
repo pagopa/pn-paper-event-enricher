@@ -6,9 +6,10 @@ const { SafeStorageClient } = require("./libs/SafeStorageClient");
 const { FileUtil } = require("./libs/FileUtil");
 
 async function main() {
+    const { paIdArg, fileName, envName } = getArguments();
     const safeStorageUrl = process.env.SAFESTORAGE_URL;
     const bucketDestination = process.env.BUCKET_DESTINATION;
-    const { paId, fileName, envName } = getArguments();
+    const paId = process.env.PA_ID ? process.env.PA_ID : paIdArg;
     console.log('paId =', paId, 'fileName =', fileName, 'envName =', envName);
 
     const awsClient = new AwsClientsWrapper(envName);

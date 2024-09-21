@@ -2,14 +2,14 @@ const { parseArgs } = require('util');
 
 function getArguments() {
     const args = [
-        { name: "paId", mandatory: true, subcommand: [] },
+        { name: "paIdArg", mandatory: false, subcommand: [] },
         { name: "fileName", mandatory: false, subcommand: [] },
-        { name: "envName", mandatory: true, subcommand: [] }
+        { name: "envName", mandatory: false, subcommand: [] }
     ];
 
     const values = parseArgs({
         options: {
-            paId: {
+            paIdArg: {
                 type: "string", short: "p", default: undefined
             },
             fileName: {
