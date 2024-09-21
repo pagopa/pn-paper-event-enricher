@@ -27,6 +27,17 @@ Resources:
                   - arn:aws:s3:::bucket-test-con020/*
 #                  - arn:aws:s3:::your-output-bucket-name
 #                  - arn:aws:s3:::your-output-bucket-name/*
+        - PolicyName: CodeBuildDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - arn:aws:dynamodb:*:*:table/pn-Notifications
         - PolicyName: CodeBuildCloudWatchLogsPolicy
           PolicyDocument:
             Version: '2012-10-17'
