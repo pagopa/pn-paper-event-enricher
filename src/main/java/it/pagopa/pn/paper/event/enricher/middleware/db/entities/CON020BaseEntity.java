@@ -1,15 +1,13 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db.entities;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 
 import java.time.Instant;
 
 @Setter
 @ToString
+@Data
 @EqualsAndHashCode
 public class CON020BaseEntity {
     public static final String COL_HASH_KEY = "hashKey";
@@ -24,7 +22,7 @@ public class CON020BaseEntity {
     @Getter(onMethod = @__({@DynamoDbSortKey, @DynamoDbAttribute(COL_SORT_KEY)}))
     private String sortKey;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_TTL)}))
-    private long ttl;
+    private Long ttl;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_RECORD_CREATION_TIME)}))
     private Instant recordCreationTime;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_LAST_MODIFICATION_TIME)}))

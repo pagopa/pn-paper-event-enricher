@@ -161,6 +161,7 @@ Resources:
         VisibilityTimeout: 900
         MaxReceiveCount: 1
         DelaySeconds: 1
+        MessageRetentionPeriod: 1209600
 
   PaperEventCdcToEnrichedEventsQueuePipe:
     Type: 'AWS::Pipes::Pipe'
@@ -217,6 +218,7 @@ Resources:
         VisibilityTimeout: 60
         MaxReceiveCount: 10
         DelaySeconds: 1
+        MessageRetentionPeriod: 1209600
 
   PipeAlarm:
     Type: AWS::CloudWatch::Alarm

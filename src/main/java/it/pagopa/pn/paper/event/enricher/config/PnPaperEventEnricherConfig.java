@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration
-@ConfigurationProperties( prefix = "pn.paper.event.enricher")
+@ConfigurationProperties( prefix = "pn.paper-event-enricher")
 @Data
 @Import({SharedAutoConfiguration.class})
 public class PnPaperEventEnricherConfig {
@@ -24,6 +24,7 @@ public class PnPaperEventEnricherConfig {
     @Data
     public static class Sqs {
         private String paperArchivesQueueName;
+        private String paperEventEnrichmentInputQueueName;
     }
 
 
