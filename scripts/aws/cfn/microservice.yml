@@ -86,6 +86,10 @@ Parameters:
     Type: String
     Description: Arn of the queue where paper archives are stored
 
+  PaperEventEnrichmentInputQueueName:
+    Type: String
+    Description: Name of the queue where paper event enrichments are stored
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -102,7 +106,8 @@ Resources:
         ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
         ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName}'
         ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
         MappedPaths: '/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
