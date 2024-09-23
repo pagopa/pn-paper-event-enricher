@@ -1,5 +1,6 @@
 {
   "Parameters" : {
-    "PaperEventEnrichmentInputQueueName": "pn-paper-event-enrichment-input"
+    "PaperEventEnrichmentInputQueueName": "pn-paper-event-enrichment-input",
+    "PaperEventEnrichmentCxId": "pn-paper-event-enricher"
   }
 }

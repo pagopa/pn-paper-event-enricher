@@ -9,4 +9,5 @@ public class PnPaperEventEnricherExceptionCode {
     public static final String ERROR_MESSAGE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED = "eventType not present, cannot start scheduled action.";
 
     public static final String ERROR_CODE_INVALID_REQUESTID = "PN_PAPER_EVENT_ENRICHER_INVALID_REQUESTID";
+    public static final String ERROR_MESSAGE_PAPER_EVENT_ENRICHER_ERRORCOMPUTECHECKSUM = "";
 }

@@ -90,6 +90,10 @@ Parameters:
     Type: String
     Description: Name of the queue where paper event enrichments are stored
 
+  PaperEventEnrichmentCxId:
+    Type: String
+    Description: 'CxId of the paper event enricher'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -108,6 +112,7 @@ Resources:
         ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
         ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
         ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
         MappedPaths: '/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
