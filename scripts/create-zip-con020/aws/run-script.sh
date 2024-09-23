@@ -1,12 +1,25 @@
 #! /bin/bash
 
-# I parametri vengono passati come argomenti allo script
-PROFILE=$1
-PA_ID=$1
-BUCKET_SOURCE=$2
+
+ENV=$1
+PA_ID=$2
 S3_KEY_SOURCE=$3
-BUCKET_DESTINATION=$4
-SAFESTORAGE_URL=$5
+SAFESTORAGE_URL=$4
+PROFILE=sso_pn-core-$ENV
+
+BUCKET_SOURCE=$( aws ${aws_command_base_args} \
+    cloudformation describe-stacks \
+      --profile "$PROFILE" \
+      --stack-name "create-zip-con020-codebuild-$ENV" \
+      --output json \
+  | jq -r ".Stacks[0].Outputs | .[] | select( .OutputKey==\"Con020InputBucket\") | .OutputValue" )
+
+BUCKET_DESTINATION=$( aws ${aws_command_base_args} \
+    cloudformation describe-stacks \
+      --profile "$PROFILE" \
+      --stack-name "create-zip-con020-codebuild-$ENV" \
+      --output json \
+  | jq -r ".Stacks[0].Outputs | .[] | select( .OutputKey==\"Con020OutputBucket\") | .OutputValue" )
 
 aws codebuild start-build \
   --profile "$PROFILE" \
