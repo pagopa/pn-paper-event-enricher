@@ -2,10 +2,10 @@ package it.pagopa.pn.paper.event.enricher.config.msclient;
 
 import it.pagopa.pn.commons.pnclients.CommonBaseClient;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
-import it.pagopa.pn.template.generated.openapi.msclient.safestorage.ApiClient;
-import it.pagopa.pn.template.generated.openapi.msclient.safestorage.api.FileDownloadApi;
-import it.pagopa.pn.template.generated.openapi.msclient.safestorage.api.FileMetadataUpdateApi;
-import it.pagopa.pn.template.generated.openapi.msclient.safestorage.api.FileUploadApi;
+import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.ApiClient;
+import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.api.FileDownloadApi;
+import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.api.FileMetadataUpdateApi;
+import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.api.FileUploadApi;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
