@@ -6,6 +6,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.queue.consumer.HandleEventUt
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.service.PaperEventEnricherService;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,16 +17,12 @@ import java.util.function.Consumer;
 
 @Configuration
 @CustomLog
-public class PaperEventEnricherNewArchiveEventHandler {
+@RequiredArgsConstructor
+public class PaperArchiveEventHandler {
 
     private final PaperEventEnricherService paperEventEnricherService;
 
     private static final String HANDLER_REQUEST = "pnPaperEventEnricherNewArchiveConsumer";
-
-
-    public PaperEventEnricherNewArchiveEventHandler(PaperEventEnricherService paperEventEnricherInputService) {
-        this.paperEventEnricherService = paperEventEnricherInputService;
-    }
 
     @Bean
     public Consumer<Message<PaperArchiveEvent.Payload>> pnPaperEventEnricherNewArchiveConsumer() {

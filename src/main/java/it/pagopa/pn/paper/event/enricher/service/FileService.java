@@ -7,19 +7,17 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Map;
+import java.util.Objects;
 
-import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.BOL;
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
+import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.getContent;
+import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.parseBol;
 
 @Component
 @CustomLog
@@ -28,59 +26,24 @@ public class FileService {
 
     private final SafeStorageService safeStorageService;
 
-    public Flux<FileDetail> extractFilesFromArchive(InputStream archiveInputStream, Map<String, IndexData> indexDataMap) {
-        ZipArchiveInputStream zipInputStream = new ZipArchiveInputStream(archiveInputStream);
-        return Flux.generate(sink -> {
-            try {
-                ZipArchiveEntry entry = zipInputStream.getNextEntry();
-                if (entry == null) {
-                    sink.complete();
-                } else {
-                    if (entry.getName().endsWith(BOL.getValue()) && CollectionUtils.isEmpty(indexDataMap)) {
-                        indexDataMap.putAll(parseBol(zipInputStream.readAllBytes()));
-                        sink.next(new FileDetail(entry.getName(), null));
-                    } else if (entry.getName().endsWith(PDF.getValue())) {
-                        sink.next(new FileDetail(entry.getName(), zipInputStream.readAllBytes()));
+    public Flux<FileDetail> extractFilesFromArchive(ZipArchiveInputStream zipInputStream, Map<String, IndexData> indexDataMap) {
+        Iterable<ZipArchiveEntry> iterable = () -> zipInputStream.iterator().asIterator();
+        return Flux.fromIterable(iterable)
+                .flatMap(zipArchiveEntry -> {
+                    if (zipArchiveEntry.getName().endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
+                        indexDataMap.putAll(parseBol(getContent(zipInputStream, zipArchiveEntry.getName())));
+                        return Mono.just(new FileDetail(zipArchiveEntry.getName(), null, null));
+                    } else if (zipArchiveEntry.getName().endsWith(PDF.getValue())) {
+                        return uploadPdf(getContent(zipInputStream, zipArchiveEntry.getName()))
+                                .map(fileKey -> new FileDetail(zipArchiveEntry.getName(), null, fileKey));
                     } else {
-                        sink.next(new FileDetail(entry.getName(), zipInputStream.readAllBytes()));
+                        return Mono.just(new FileDetail(zipArchiveEntry.getName(), getContent(zipInputStream, zipArchiveEntry.getName()), null));
                     }
-                }
-            } catch (Exception e) {
-                sink.error(e);
-            }
-        });
-    }
-
-
-    private Map<String, IndexData> parseBol(byte[] bolBytes) {
-        String bolString = new String(bolBytes);
-        Map<String, IndexData> archiveDetails = new HashMap<>();
-        for (String line : bolString.split("\n")) {
-            if (!line.isEmpty()) {
-                String[] cells = line.split("\\|");
-                String p7mEntryName = cells[0];
-                String requestId = cells[3];
-                String registeredLetterCode = cells[6];
-
-                if (p7mEntryName.toLowerCase().endsWith(PDF.name())) {
-                    IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
-                    archiveDetails.put(p7mEntryName, indexData);
-                }
-            }
-        }
-        return archiveDetails;
+                });
     }
 
     public Mono<byte[]> downloadFile(String archiveFileKey) {
-        ClassPathResource classPathResource = new ClassPathResource("PN_EXTERNAL_LEGAL_FACTS-2f1465cb10754f9cb47de16f15d59cff.zip");
-        try {
-            FileInputStream fis = new FileInputStream(classPathResource.getFile());
-
-            return Mono.just(fis.readAllBytes());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-       //return safeStorageService.callSafeStorageGetFileAndDownload(archiveFileKey);
+        return safeStorageService.callSafeStorageGetFileAndDownload(archiveFileKey);
     }
 
     public Mono<String> uploadPdf(byte[] pdfBytes) {

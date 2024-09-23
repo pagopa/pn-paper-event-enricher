@@ -6,23 +6,30 @@ import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEn
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
-import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.CON020ArchiveStatusEnum;
+import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.bouncycastle.cms.CMSProcessable;
+import org.bouncycastle.cms.CMSSignedData;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.ERROR_CODE_INVALID_REQUESTID;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.*;
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -156,4 +163,42 @@ public class PaperEventEnricherUtils {
 
         return con020EnrichedEntity;
     }
+
+    public static byte[] extractFromP7m(byte[] p7mContent) {
+        try {
+            CMSSignedData signedData = new CMSSignedData(p7mContent);
+            CMSProcessable signedContent = signedData.getSignedContent();
+            return (byte[]) signedContent.getContent();
+        }catch (Exception e){
+            throw new PaperEventEnricherException("Errore durante l'estrazione del contenuto dal file p7m", 500, ERROR_EXTRACTING_CONTENT_FROM_P7M);
+        }
+    }
+
+    public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
+        try {
+            return zipInputStream.readAllBytes();
+        } catch (IOException e) {
+            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
+        }
+    }
+
+    public static Map<String, IndexData> parseBol(byte[] bolBytes) {
+        String bolString = new String(bolBytes);
+        Map<String, IndexData> archiveDetails = new HashMap<>();
+        for (String line : bolString.split("\n")) {
+            if (!line.isEmpty()) {
+                String[] cells = line.split("\\|");
+                String p7mEntryName = cells[0];
+                String requestId = cells[3];
+                String registeredLetterCode = cells[6];
+
+                if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
+                    IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
+                    archiveDetails.put(p7mEntryName, indexData);
+                }
+            }
+        }
+        return archiveDetails;
+    }
+
 }

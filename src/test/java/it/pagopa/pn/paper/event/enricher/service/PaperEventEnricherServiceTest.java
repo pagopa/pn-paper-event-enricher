@@ -26,12 +26,15 @@ class PaperEventEnricherServiceTest {
     @Mock
     private Con020EnricherDao con020EnricherDao;
 
+    @Mock
+    private FileService fileService;
+
     private PaperEventEnricherService paperEventEnricherService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao);
+        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService);
     }
 
     @Test
