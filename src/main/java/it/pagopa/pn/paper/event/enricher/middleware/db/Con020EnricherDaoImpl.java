@@ -11,6 +11,7 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.utils.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -100,7 +101,9 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         Map<String, AttributeValue> metadataMap = new HashMap<>();
         metadataMap.put(COL_IUN, AttributeValue.builder().s(metadata.getIun()).build());
         metadataMap.put(COL_GENERATIONDATE, AttributeValue.builder().s(metadata.getGenerationDate().toString()).build());
-        metadataMap.put(COL_RECINDEX, AttributeValue.builder().s(metadata.getRecIndex()).build());
+        if(StringUtils.isNotBlank(metadata.getRecIndex())) {
+            metadataMap.put(COL_RECINDEX, AttributeValue.builder().s(metadata.getRecIndex()).build());
+        }
         metadataMap.put(COL_SENDREQUESTID, AttributeValue.builder().s(metadata.getSendRequestId()).build());
         metadataMap.put(COL_REGISTEREDLETTERCORE, AttributeValue.builder().s(metadata.getRegisteredLetterCode()).build());
         metadataMap.put(COL_EVENTTIME, AttributeValue.builder().s(metadata.getEventTime().toString()).build());
