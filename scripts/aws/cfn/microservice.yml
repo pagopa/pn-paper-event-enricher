@@ -69,6 +69,7 @@ Parameters:
 
   EcsLogGroup:
     Type: String
+    Default: ''
 
   PaperEventEnrichmentTableName:
     Type: String
