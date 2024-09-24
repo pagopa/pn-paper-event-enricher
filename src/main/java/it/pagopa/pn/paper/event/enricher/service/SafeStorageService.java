@@ -11,8 +11,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Objects;
 
-import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.ATTACHED;
-import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SAFE_STORAGE_PREFIX;
+import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
 
 @Service
 @CustomLog
@@ -39,7 +38,7 @@ public class SafeStorageService {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         fileCreationRequest.setContentType("application/pdf");
         fileCreationRequest.setStatus(ATTACHED);
-        fileCreationRequest.setDocumentType("DocType"); // TODO:document type?
+        fileCreationRequest.setDocumentType(DOCUMENT_TYPE);
         return fileCreationRequest;
     }
 
