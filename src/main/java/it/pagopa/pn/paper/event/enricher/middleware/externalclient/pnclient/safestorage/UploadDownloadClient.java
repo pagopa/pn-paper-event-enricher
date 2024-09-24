@@ -45,30 +45,28 @@ public class UploadDownloadClient {
                 });
     }
 
-    public Mono<byte[]> downloadContent(String downloadUrl) {
+    public Flux<byte[]> downloadContent(String downloadUrl) {
         log.info("start to download file to: {}", downloadUrl);
         try {
-            Flux<DataBuffer> dataBufferFlux = WebClient.create()
+            return WebClient.create()
                     .get()
                     .uri(new URI(downloadUrl))
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
-                    .doOnError(ex -> log.error("Error in WebClient", ex));
-
-            return DataBufferUtils.join(dataBufferFlux)
                     .map(dataBuffer -> {
                         byte[] bytes = new byte[dataBuffer.readableByteCount()];
                         dataBuffer.read(bytes);
-                        DataBufferUtils.release(dataBuffer);
+                        DataBufferUtils.release(dataBuffer); // Release buffer
                         return bytes;
                     })
+                    .doOnError(ex -> log.error("Error in WebClient", ex))
                     .onErrorMap(ex -> {
                         log.error("downloadContent Exception downloading content", ex);
                         return new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR");
                     });
         } catch (URISyntaxException ex) {
             log.error("error in URI ", ex);
-            return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
+            return Flux.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
     }
 }
