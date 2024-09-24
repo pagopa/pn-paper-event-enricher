@@ -19,10 +19,6 @@ Parameters:
   Version:
     Type: String
     Description: 'keep track of used projects commitIds'
-  
-  CdcKinesisSourceStreamArn:
-    Type: String
-    Description: 'Where to send CDC'
 
   AlarmSNSTopicArn:
     Type: String
