@@ -7,7 +7,7 @@ class FileUtil {
     buildZipFile(downloadedFiles, tempDir, zipPath, csvData) {
 
         // Creazione del CSV
-        const csvFilePath = path.join(tempDir, 'index.csv');
+        const csvFilePath = path.join(tempDir, 'elenco_stampe.csv');
         this.generateCSV(csvData, csvFilePath);
 
         // Creazione dello zip dei file scaricati + l'indice CSV
