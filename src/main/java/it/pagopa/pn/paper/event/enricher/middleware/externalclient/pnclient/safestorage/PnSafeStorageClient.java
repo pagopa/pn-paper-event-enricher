@@ -42,10 +42,7 @@ public class PnSafeStorageClient extends BaseClient {
         log.debug(String.format("Req params: %s", fileCreationRequestDto.getContentType()));
         log.debug(String.format("storage id %s ", this.pnPaperEventEnricherConfig.getCxId()));
         return this.fileUploadApi.createFile(this.pnPaperEventEnricherConfig.getCxId(), PaperEventEnricherConstant.X_CHECKSUM, checksum, fileCreationRequestDto)
-                .retryWhen(
-                        Retry.backoff(2, Duration.ofMillis(25))
-                                .filter(throwable -> throwable instanceof TimeoutException || throwable instanceof ConnectException)
-                ).onErrorResume(WebClientResponseException.class, ex -> {
+                .onErrorResume(WebClientResponseException.class, ex -> {
                     log.error(ex.getResponseBodyAsString());
                     return Mono.error(new PaperEventEnricherException("DOCUMENT_UPLOAD_ERROR", 500, "DOCUMENT_UPLOAD_ERROR"));
                 });
@@ -57,10 +54,6 @@ public class PnSafeStorageClient extends BaseClient {
         }
         log.debug("Req params : {}", fileKey);
         return fileDownloadApi.getFile(fileKey, this.pnPaperEventEnricherConfig.getCxId(), false)
-                .retryWhen(
-                        Retry.backoff(2, Duration.ofMillis(500))
-                                .filter(throwable -> throwable instanceof TimeoutException || throwable instanceof ConnectException)
-                )
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.error(ex.getResponseBodyAsString());
                     if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
