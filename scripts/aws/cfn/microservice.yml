@@ -96,75 +96,75 @@ Parameters:
 
 Resources:
 
-  PaperEventEnricherMicroservice:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/ecs-service.yaml"
-      Parameters:
-        MicroServiceUniqueName: !Sub '${ProjectName}-template-ms-be'
-        CpuValue: 512
-        MemoryAmount: 2GB
-        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
-        ContainerImageURI: !Sub '${ContainerImageUri}'
-        ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
-        ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
-        ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
-        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
-        MappedPaths: '/*'
-        ECSClusterName: !Ref ECSClusterName
-        Subnets: !Ref SubnetsIds
-        VpcId: !Ref VpcId
-        EcsDefaultSecurityGroup: !Ref EcsDefaultSecurityGroup
-        LoadBalancerListenerArn: !Ref ApplicationLoadBalancerListenerArn
-        LoadbalancerRulePriority: !Ref MicroserviceNumber
-        CloudwatchLogKinesisStreamArn: !Ref LogsKinesisSourceStreamArn
-        TaskRoleManagedPolicyArn: !Ref PaperEventEnricherMicroserviceTaskManagedPolicy
-        EcsLogGroup: !Ref EcsLogGroup
-        LogAlarmStrategyV1: !Ref LogAlarmStrategy
+#  PaperEventEnricherMicroservice:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/ecs-service.yaml"
+#      Parameters:
+#        MicroServiceUniqueName: !Sub '${ProjectName}-template-ms-be'
+#        CpuValue: 512
+#        MemoryAmount: 2GB
+#        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+#        ContainerImageURI: !Sub '${ContainerImageUri}'
+#        ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
+#        ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
+#        ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
+#        ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
+#        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+#        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+#        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
+#        MappedPaths: '/*'
+#        ECSClusterName: !Ref ECSClusterName
+#        Subnets: !Ref SubnetsIds
+#        VpcId: !Ref VpcId
+#        EcsDefaultSecurityGroup: !Ref EcsDefaultSecurityGroup
+#        LoadBalancerListenerArn: !Ref ApplicationLoadBalancerListenerArn
+#        LoadbalancerRulePriority: !Ref MicroserviceNumber
+#        CloudwatchLogKinesisStreamArn: !Ref LogsKinesisSourceStreamArn
+#        TaskRoleManagedPolicyArn: !Ref PaperEventEnricherMicroserviceTaskManagedPolicy
+#        EcsLogGroup: !Ref EcsLogGroup
+#        LogAlarmStrategyV1: !Ref LogAlarmStrategy
 
-  PaperEventEnricherMicroserviceTaskManagedPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-              - dynamodb:PutItem
-              - dynamodb:DeleteItem
-              - dynamodb:Query
-              - dynamodb:UpdateItem
-            Resource:
-              - !Sub "${PaperEventEnrichmentTableArn}"
-              - !Sub "${PaperEventEnrichmentTableArn}/*"
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-              - sqs:GetQueueUrl
-              - sqs:ChangeMessageVisibility
-              - sqs:DeleteMessage
-              - sqs:GetQueueAttributes
-              - sqs:ReceiveMessage
-            Resource:
-              - !Ref PaperArchivesQueueARN
+#  PaperEventEnricherMicroserviceTaskManagedPolicy:
+#    Type: AWS::IAM::ManagedPolicy
+#    Properties:
+#      PolicyDocument:
+#        Version: 2012-10-17
+#        Statement:
+#          - Effect: Allow
+#            Action:
+#              - dynamodb:GetItem
+#              - dynamodb:PutItem
+#              - dynamodb:DeleteItem
+#              - dynamodb:Query
+#              - dynamodb:UpdateItem
+#            Resource:
+#              - !Sub "${PaperEventEnrichmentTableArn}"
+#              - !Sub "${PaperEventEnrichmentTableArn}/*"
+#          - Effect: Allow
+#            Action:
+#              - sqs:SendMessage
+#              - sqs:GetQueueUrl
+#              - sqs:ChangeMessageVisibility
+#              - sqs:DeleteMessage
+#              - sqs:GetQueueAttributes
+#              - sqs:ReceiveMessage
+#            Resource:
+#              - !Ref PaperArchivesQueueARN
 
-  # CloudWatch dashboard
+#  # CloudWatch dashboard
   PaperEventEnricherMicroserviceCloudWatchDashboard:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/microservice-cloudwatch-dashboard.yaml"
       Parameters:
         DashboardName: !Sub "${ProjectName}-paper-event-enricher"
-        AlarmArns: !Join
-          - ','
-          - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
-        LogGroupsNames: !Join
-          - ','
-          - - !Ref EcsLogGroup
+#        AlarmArns: !Join
+#          - ','
+#          - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
+#        LogGroupsNames: !Join
+#          - ','
+#          - - !Ref EcsLogGroup
         DynamoDBTableNames: !Join
           - ','
           - - !Ref PaperEventEnrichmentTableName

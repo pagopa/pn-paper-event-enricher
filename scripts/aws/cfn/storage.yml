@@ -206,8 +206,8 @@ Resources:
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
-      # TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"  # RIPRISTINARE
-      TemplateURL: "fragments/sqs-queue.yaml"
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+#      TemplateURL: "fragments/sqs-queue.yaml"
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-event-enrichment-output'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
