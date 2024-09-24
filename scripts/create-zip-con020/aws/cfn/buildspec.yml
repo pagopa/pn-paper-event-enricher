@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20 # Definisci la versione di Node.js
+    commands:
+      - cd scripts/create-zip-con020
+      - npm install # Installa le dipendenze dal package.json
+  build:
+    commands:
+      - echo "Esecuzione dello script JS"
+      - node src/index.js
+  post_build:
+    commands:
+      - echo "Script completato"
+artifacts:
+  files:
+    - '**/*' # Specifica eventuali file da caricare come artefatti
