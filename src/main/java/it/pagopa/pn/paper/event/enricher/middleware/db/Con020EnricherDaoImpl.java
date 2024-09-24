@@ -82,7 +82,7 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
 
         attributeValueMap.put(":" + COL_TTL, AttributeValue.builder().n(entity.getTtl().toString()).build());
         attributeValueMap.put(":" + COL_RECORD_CREATION_TIME, AttributeValue.builder().s(entity.getRecordCreationTime().toString()).build());
-        attributeValueMap.put(":" + COL_LAST_MODIFICATION_TIME, AttributeValue.builder().s(String.valueOf(entity.getTtl())).build());
+        attributeValueMap.put(":" + COL_LAST_MODIFICATION_TIME, AttributeValue.builder().s(entity.getLastModificationTime().toString()).build());
         attributeValueMap.put(":" + COL_ENTITY_NAME, AttributeValue.builder().s(entity.getEntityName()).build());
 
         if (PDF.equals(updateType)) {
