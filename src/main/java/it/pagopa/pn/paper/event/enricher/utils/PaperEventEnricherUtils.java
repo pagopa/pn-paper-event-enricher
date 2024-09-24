@@ -14,13 +14,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.bouncycastle.cms.CMSProcessable;
 import org.bouncycastle.cms.CMSSignedData;
+import org.bouncycastle.cms.SignerInformation;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -164,20 +167,20 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] extractFromP7m(byte[] p7mContent) {
-        try {
-            CMSSignedData signedData = new CMSSignedData(p7mContent);
-            CMSProcessable signedContent = signedData.getSignedContent();
-            return (byte[]) signedContent.getContent();
-        }catch (Exception e){
-            throw new PaperEventEnricherException("Errore durante l'estrazione del contenuto dal file p7m", 500, ERROR_EXTRACTING_CONTENT_FROM_P7M);
-        }
-    }
-
     public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
         try {
             return zipInputStream.readAllBytes();
         } catch (IOException e) {
+            log.error("Failed to read file [{}]", fileName, e);
+            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
+        }
+    }
+
+    public static byte[] getContent(InputStream zipInputStream, String fileName) {
+        try {
+            return zipInputStream.readAllBytes();
+        } catch (IOException e) {
+            log.error("Failed to read file [{}]", fileName, e);
             throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
         }
     }

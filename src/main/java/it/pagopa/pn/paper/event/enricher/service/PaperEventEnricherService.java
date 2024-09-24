@@ -17,11 +17,10 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.ByteArrayInputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.io.*;
+import java.util.*;
 
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.*;
 
 @Service
@@ -52,31 +51,53 @@ public class PaperEventEnricherService {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         String archiveFileKey = payload.getArchiveFileKey();
         return con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSING.name()))
-                .flatMap(con020ArchiveEntity -> fileService.downloadFile(archiveFileKey))
-                .doOnNext(bytes -> log.info("Downloaded file with key: {}", archiveFileKey))
-                .flatMapMany(this::extractP7MFromBin)
-                .flatMap(p7mDetail -> fileService.extractFilesFromArchive(new ZipArchiveInputStream(new ByteArrayInputStream(p7mDetail)), indexDataMap))
-                .flatMap(fileDetail -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey))
+                .flatMap(con020ArchiveEntity -> fileService.retrieveDownloadUrl(archiveFileKey))
+                .flatMapMany(fileService::downloadFile)
+                .collectList()
+                .flatMap(bytes -> Mono.just(createInputStreamFromByteArray(bytes)))
+                .flatMapMany(inputStream -> fileService.extractFilesFromArchive(new ZipArchiveInputStream(inputStream), indexDataMap))
+                .doOnNext(fileDetail -> log.info("FileDetail: {}", fileDetail.getFilename()))
+                .flatMap(p7mContent -> {
+                    List<FileDetail> fileDetails = fileService.extractFilesFromArchiveP7m(new ZipArchiveInputStream(p7mContent.getContent()), indexDataMap);
+                    return Flux.fromStream(fileDetails.stream().filter(fileDetail -> fileDetail.getFilename().endsWith(PDF.getValue())))
+                            .flatMap(fileDetail -> uploadAndUpdatePrintedPdf(fileDetail, indexDataMap, archiveFileKey));
+                })
                 .collectList()
                 .flatMap(con020EnrichedEntities -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())))
                 .then();
     }
 
-    private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
+    private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
+        return fileService.uploadPdf(fileDetail.getContentBytes())
+                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey));
+    }
+
+    public static InputStream createInputStreamFromByteArray(List<byte[]> byteData) {
+        return new SequenceInputStream(new Enumeration<InputStream>() {
+            private int index = 0;
+
+            @Override
+            public boolean hasMoreElements() {
+                return index < byteData.size();
+            }
+
+            @Override
+            public InputStream nextElement() {
+                return new ByteArrayInputStream(byteData.get(index++));
+            }
+        });
+    }
+
+
+    private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, String fileKey) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
         if (Objects.nonNull(indexData)) {
-            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
+            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileKey, archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
             return con020EnricherDao.updatePrintedPdf(con020EnrichedEntity)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable))
                     .map(CON020BaseEntity::getHashKey);
         }
         log.info("Index data not found for file: {}", fileDetail.getFilename());
         return Mono.just("empty");
-    }
-
-    private Flux<byte[]> extractP7MFromBin(byte[] bytes) {
-        return fileService.extractFilesFromArchive(new ZipArchiveInputStream(new ByteArrayInputStream(bytes)), null)
-                .doOnNext(fileDetail -> log.info("Extracted file: {}", fileDetail.getFilename()))
-                .map(fileDetail -> extractFromP7m(fileDetail.getContent()));
     }
 }
