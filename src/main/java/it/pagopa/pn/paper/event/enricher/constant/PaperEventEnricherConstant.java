@@ -11,7 +11,7 @@ public class PaperEventEnricherConstant {
     public static final String SAFE_STORAGE_PREFIX = "safestorage://";
     // SafeStorage status
     public static final String ATTACHED = "ATTACHED";
-    public static final String DOCUMENT_TYPE = "PN_ADDRESSES_NORMALIZED"; //TODO: PN_PRINTED
+    public static final String DOCUMENT_TYPE = "PN_PRINTED";
 
 
 }
