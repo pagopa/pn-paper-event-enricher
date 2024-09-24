@@ -1,0 +1,25 @@
+{
+  "name": "create-zip-con020",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \\\"Error: no tests specified\\\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.454.0",
+    "@aws-sdk/client-s3": "^3.454.0",
+    "@aws-sdk/credential-provider-ini": "^3.454.0",
+    "@aws-sdk/credential-provider-sso": "^3.454.0",
+    "@aws-sdk/util-dynamodb": "^3.454.0",
+    "decompress": "^4.2.1",
+    "uuid": "^9.0.1",
+    "adm-zip": "^0.5.9",
+    "axios": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
