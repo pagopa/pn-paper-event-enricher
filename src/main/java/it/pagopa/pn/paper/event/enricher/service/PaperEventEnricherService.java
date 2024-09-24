@@ -38,7 +38,6 @@ public class PaperEventEnricherService {
                 .flatMap(con020ArchiveEntity -> con020ArchiveDao.putIfAbsent(con020ArchiveEntity)
                         .doOnError(throwable -> {
                             log.warn("Error while creating archive entity: {}", throwable.getMessage());
-                            log.warn("Error: ", throwable);
                         })
                         .onErrorReturn(PaperEventEnricherException.class, con020ArchiveEntity))
                 .flatMap(con020ArchiveEntity -> createEnricherEntity(payload))
