@@ -1,5 +1,8 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
@@ -17,8 +20,11 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.annotation.PostConstruct;
 import java.io.*;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.*;
@@ -31,6 +37,20 @@ public class PaperEventEnricherService {
     private final Con020ArchiveDao con020ArchiveDao;
     private final Con020EnricherDao con020EnricherDao;
     private final FileService fileService;
+
+    private RateLimiter safeStorageploadLimiter;
+
+    @PostConstruct
+    protected void postConstruct() {
+        safeStorageploadLimiter = RateLimiter.of(
+                "safeStorageploadLimiter",
+                RateLimiterConfig.custom()
+                        .limitRefreshPeriod(Duration.ofSeconds(8))
+                        .limitForPeriod(2)
+                        .timeoutDuration(Duration.ofMinutes( 3 * 60)) // max wait time for a request, if reached then error
+                        .build()
+            );
+    }
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
         return createArchiveEntity(payload.getAnalogMail())
@@ -58,17 +78,24 @@ public class PaperEventEnricherService {
                 .doOnNext(fileDetail -> log.info("FileDetail: {}", fileDetail.getFilename()))
                 .flatMap(p7mContent -> {
                     List<FileDetail> fileDetails = fileService.extractFilesFromArchiveP7m(new ZipArchiveInputStream(p7mContent.getContent()), indexDataMap);
+                    log.info("Archive extraction end: archiveFileKey={} extractedFileCount={}", archiveFileKey, fileDetails.size() );
+
+                    AtomicInteger uploadedFileCounter = new AtomicInteger( 0 );
                     return Flux.fromStream(fileDetails.stream().filter(fileDetail -> fileDetail.getFilename().endsWith(PDF.getValue())))
-                            .flatMap(fileDetail -> uploadAndUpdatePrintedPdf(fileDetail, indexDataMap, archiveFileKey));
+                            .flatMap(fileDetail -> uploadAndUpdatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, uploadedFileCounter));
                 })
                 .collectList()
                 .flatMap(con020EnrichedEntities -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())))
                 .then();
     }
 
-    private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
+    private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, AtomicInteger uploadedFileCounter ) {
+
         return fileService.uploadPdf(fileDetail.getContentBytes())
-                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey));
+                .doOnNext( s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()) )
+                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey))
+                .transformDeferred(RateLimiterOperator.of(safeStorageploadLimiter))
+                ;
     }
 
     public static InputStream createInputStreamFromByteArray(List<byte[]> byteData) {

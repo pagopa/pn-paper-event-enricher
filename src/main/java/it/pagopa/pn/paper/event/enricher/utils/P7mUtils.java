@@ -42,7 +42,8 @@ public class P7mUtils {
             ASN1TaggedObjectParser op = (ASN1TaggedObjectParser) obj;
 
             System.out.println(  prefix + ".0) Tag: " + op.getTagNo() );
-            Object child = op.getObjectParser( op.getTagNo(), true);
+            //Object child = op.getObjectParser( op.getTagNo(), true);
+            Object child = op.parseExplicitBaseObject();
 
             result = recursiveParse( prefix + ".1", child);
         }
