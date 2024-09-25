@@ -1,5 +1,6 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
@@ -28,12 +29,16 @@ class PaperEventEnricherServiceTest {
     @Mock
     private FileService fileService;
 
+    @Mock
+    private PnPaperEventEnricherConfig config;
+
     private PaperEventEnricherService paperEventEnricherService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService);
+        when(config.getSafeStorageUploadMaxConcurrentRequest()).thenReturn(10);
+        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService, config);
     }
 
     @Test

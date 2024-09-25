@@ -1,8 +1,9 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
+import io.github.resilience4j.bulkhead.BulkheadConfig;
+import io.github.resilience4j.bulkhead.internal.SemaphoreBulkhead;
+import io.github.resilience4j.reactor.bulkhead.operator.BulkheadOperator;
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
@@ -37,19 +38,17 @@ public class PaperEventEnricherService {
     private final Con020ArchiveDao con020ArchiveDao;
     private final Con020EnricherDao con020EnricherDao;
     private final FileService fileService;
+    private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
 
-    private RateLimiter safeStorageploadLimiter;
+    private SemaphoreBulkhead safeStorageUploadLimiter;
 
     @PostConstruct
     protected void postConstruct() {
-        safeStorageploadLimiter = RateLimiter.of(
-                "safeStorageploadLimiter",
-                RateLimiterConfig.custom()
-                        .limitRefreshPeriod(Duration.ofSeconds(8))
-                        .limitForPeriod(2)
-                        .timeoutDuration(Duration.ofMinutes( 3 * 60)) // max wait time for a request, if reached then error
-                        .build()
-            );
+        BulkheadConfig bulkheadConfig = BulkheadConfig.custom()
+                .maxConcurrentCalls(pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                .build();
+
+        safeStorageUploadLimiter = new SemaphoreBulkhead("safeStorageUploadBulkhead", bulkheadConfig);
     }
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
@@ -94,7 +93,7 @@ public class PaperEventEnricherService {
         return fileService.uploadPdf(fileDetail.getContentBytes())
                 .doOnNext( s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()) )
                 .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey))
-                .transformDeferred(RateLimiterOperator.of(safeStorageploadLimiter))
+                .transformDeferred(BulkheadOperator.of(safeStorageUploadLimiter))
                 ;
     }
 
