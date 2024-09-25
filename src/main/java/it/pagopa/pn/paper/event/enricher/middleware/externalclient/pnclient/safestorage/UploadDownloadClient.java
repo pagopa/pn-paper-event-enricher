@@ -1,5 +1,6 @@
 package it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.safestorage;
 
+import io.netty.handler.timeout.TimeoutException;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.model.FileCreationResponse;
 import lombok.CustomLog;
@@ -8,21 +9,29 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import javax.net.ssl.SSLHandshakeException;
+import java.net.*;
+import java.time.Duration;
 
 @Component
 @CustomLog
 public class UploadDownloadClient {
 
+    private static final int RETRY_MAX_ATTEMPTS_PRESIGNED_URL = 3;
+
     private final WebClient webClient;
 
     public UploadDownloadClient() {
         this.webClient = WebClient.builder()
+                .filter(buildRetryExchangeFilterFunction())
                 .clientConnector(new ReactorClientHttpConnector())
                 .build();
     }
@@ -48,7 +57,7 @@ public class UploadDownloadClient {
     public Flux<byte[]> downloadContent(String downloadUrl) {
         log.info("start to download file to: {}", downloadUrl);
         try {
-            return WebClient.create()
+            return webClient
                     .get()
                     .uri(new URI(downloadUrl))
                     .retrieve()
@@ -68,5 +77,40 @@ public class UploadDownloadClient {
             log.error("error in URI ", ex);
             return Flux.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
+    }
+
+    protected ExchangeFilterFunction buildRetryExchangeFilterFunction() {
+        return (request, next) -> next.exchange(request)
+                .flatMap(clientResponse -> Mono.just(clientResponse)
+                        .filter(response -> clientResponse.statusCode().isError())
+                        .flatMap(response -> clientResponse.createException())
+                        .flatMap(Mono::error)
+                        .thenReturn(clientResponse))
+                .retryWhen( Retry.backoff(RETRY_MAX_ATTEMPTS_PRESIGNED_URL, Duration.ofMillis(25)).jitter(0.75)
+                        .filter(this::isRetryableException)
+                        .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> {
+                            Throwable lastExceptionInRetry = retrySignal.failure();
+                            log.warn("Retries exhausted {}, with last Exception: {}", retrySignal.totalRetries(), lastExceptionInRetry.getMessage());
+                            return lastExceptionInRetry;
+                        })
+                );
+    }
+
+    private boolean isRetryableException(Throwable throwable) {
+        boolean retryable = throwable instanceof TimeoutException ||
+                throwable instanceof SocketException ||
+                throwable instanceof SocketTimeoutException ||
+                throwable instanceof SSLHandshakeException ||
+                throwable instanceof UnknownHostException ||
+                throwable instanceof WebClientRequestException ||
+                throwable instanceof WebClientResponseException.TooManyRequests ||
+                throwable instanceof WebClientResponseException.GatewayTimeout ||
+                throwable instanceof WebClientResponseException.BadGateway ||
+                throwable instanceof WebClientResponseException.ServiceUnavailable
+                ;
+        if(retryable) {
+            log.warn("Exception caught by retry", throwable);
+        }
+        return retryable;
     }
 }
