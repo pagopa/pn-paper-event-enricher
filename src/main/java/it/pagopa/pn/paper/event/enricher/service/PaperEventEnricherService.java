@@ -1,8 +1,5 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
-import io.github.resilience4j.bulkhead.BulkheadConfig;
-import io.github.resilience4j.bulkhead.internal.SemaphoreBulkhead;
-import io.github.resilience4j.reactor.bulkhead.operator.BulkheadOperator;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
@@ -20,10 +17,7 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import javax.annotation.PostConstruct;
 import java.io.*;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,23 +34,11 @@ public class PaperEventEnricherService {
     private final FileService fileService;
     private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
 
-    private SemaphoreBulkhead safeStorageUploadLimiter;
-
-    @PostConstruct
-    protected void postConstruct() {
-        BulkheadConfig bulkheadConfig = BulkheadConfig.custom()
-                .maxConcurrentCalls(pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
-                .build();
-
-        safeStorageUploadLimiter = new SemaphoreBulkhead("safeStorageUploadBulkhead", bulkheadConfig);
-    }
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
         return createArchiveEntity(payload.getAnalogMail())
                 .flatMap(con020ArchiveEntity -> con020ArchiveDao.putIfAbsent(con020ArchiveEntity)
-                        .doOnError(throwable -> {
-                            log.warn("Error while creating archive entity: {}", throwable.getMessage());
-                        })
+                        .doOnError(throwable -> log.warn("Error while creating archive entity: {}", throwable.getMessage()))
                         .onErrorReturn(PaperEventEnricherException.class, con020ArchiveEntity))
                 .flatMap(con020ArchiveEntity -> createEnricherEntity(payload))
                 .flatMap(con020EnricherDao::updateMetadata)
@@ -81,20 +63,18 @@ public class PaperEventEnricherService {
 
                     AtomicInteger uploadedFileCounter = new AtomicInteger( 0 );
                     return Flux.fromStream(fileDetails.stream().filter(fileDetail -> fileDetail.getFilename().endsWith(PDF.getValue())))
-                            .flatMap(fileDetail -> uploadAndUpdatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, uploadedFileCounter));
+                            .flatMap(fileDetail -> uploadAndUpdatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, uploadedFileCounter), pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest());
                 })
                 .collectList()
                 .flatMap(con020EnrichedEntities -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())))
                 .then();
     }
 
-    private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, AtomicInteger uploadedFileCounter ) {
+    private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, AtomicInteger uploadedFileCounter) {
 
         return fileService.uploadPdf(fileDetail.getContentBytes())
-                .doOnNext( s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()) )
-                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey))
-                .transformDeferred(BulkheadOperator.of(safeStorageUploadLimiter))
-                ;
+                .doOnNext(s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()))
+                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey));
     }
 
     public static InputStream createInputStreamFromByteArray(List<byte[]> byteData) {
