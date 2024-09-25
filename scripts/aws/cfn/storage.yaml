@@ -5,32 +5,34 @@ Parameters:
   ProjectName:
     Type: String
     Description: Nome dell'ambiente destinazione
+    Default: pn # To be removed
 
   # Unused but required by CD pipeline
   MicroserviceNumber:
     Type: Number
     Description: An unique number that identify the microservice inside the ECS cluster.
+    Default: 41 # To be removed
 
   # Unused but required by CD pipeline
   TemplateBucketBaseUrl:
     Type: String
     Description: URL da cui caricare i frammenti di template di infrastruttura
+    Default: ''  # To be removed
   
   Version:
     Type: String
     Description: 'keep track of used projects commitIds'
-  
-  CdcKinesisSourceStreamArn:
-    Type: String
-    Description: 'Where to send CDC'
+    Default: '0.0.0.0.0.0.1' # To be removed
 
   AlarmSNSTopicArn:
     Type: String
     Description: 'Topic alarm ARN'
+    Default: 'arn:aws:sns:eu-central-1:830192246553:FakeAlarmTopic' # To be removed
 
   AlarmSNSTopicName:
     Type: String
     Description: 'Topic alarm name'
+    Default: 'FakeAlarmTopic'  # To be removed
 
 Resources:
   PaperEventEnrichmentTable:
@@ -65,7 +67,8 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
+#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
+      TemplateURL: "fragments/kinesis-data-stream.yaml"
       Parameters:
         StreamName: !Sub "${ProjectName}-paper-event-enrichment-cdc"
         # PROVISIONED MODE: follow shard configuration
@@ -154,11 +157,12 @@ Resources:
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
-      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+      TemplateURL: "fragments/sqs-queue.yaml"
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 900
+        VisibilityTimeout: 18000 # 5 ore
         MaxReceiveCount: 1
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
@@ -205,12 +209,27 @@ Resources:
           }
       Target: !GetAtt 'EnrichedEventsQueue.Outputs.QueueARN'
 
-  EnrichedEventsQueue:
+  InputEventsQueue: # Move resource into pn-infra
     Type: AWS::CloudFormation::Stack
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
       # TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"  # RIPRISTINARE
+      TemplateURL: "fragments/sqs-queue.yaml"
+      Parameters:
+        QueueName: !Sub '${ProjectName}-paper-event-enrichment-input'
+        AlarmSNSTopicName: !Ref AlarmSNSTopicName
+        VisibilityTimeout: 60
+        MaxReceiveCount: 10
+        DelaySeconds: 1
+        MessageRetentionPeriod: 1209600
+
+  EnrichedEventsQueue:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
       TemplateURL: "fragments/sqs-queue.yaml"
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-event-enrichment-output'

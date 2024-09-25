@@ -10,9 +10,8 @@ public class PaperEventEnricherConstant {
     public static final String ENRICHED_ENTITY_NAME = "CON020Enriched";
     public static final String SAFE_STORAGE_PREFIX = "safestorage://";
     // SafeStorage status
-    public static final String PRELOADED = "PRELOADED";
-    public static final String SAVED = "SAVED";
     public static final String ATTACHED = "ATTACHED";
+    public static final String DOCUMENT_TYPE = "PN_PRINTED";
 
 
 }

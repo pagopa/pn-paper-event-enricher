@@ -1,5 +1,6 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
@@ -15,7 +16,6 @@ import reactor.test.StepVerifier;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class PaperEventEnricherServiceTest {
@@ -26,12 +26,19 @@ class PaperEventEnricherServiceTest {
     @Mock
     private Con020EnricherDao con020EnricherDao;
 
+    @Mock
+    private FileService fileService;
+
+    @Mock
+    private PnPaperEventEnricherConfig config;
+
     private PaperEventEnricherService paperEventEnricherService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao);
+        when(config.getSafeStorageUploadMaxConcurrentRequest()).thenReturn(10);
+        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService, config);
     }
 
     @Test

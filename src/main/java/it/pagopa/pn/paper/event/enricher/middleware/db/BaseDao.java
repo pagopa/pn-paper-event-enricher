@@ -35,8 +35,7 @@ public abstract class BaseDao<T> {
                     log.warn("Conditional check failed: {}", e.getMessage());
                     return Mono.error(new PaperEventEnricherException(String.format("Con020ArchiveDao doesn't exist for ArchiveFileKey: [{%s}]", archiveFileKey),
                             400, "ConditionalCheckFailedException"));
-                })
-                .then(Mono.empty());
+                });
     }
 
     protected Mono<T> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {

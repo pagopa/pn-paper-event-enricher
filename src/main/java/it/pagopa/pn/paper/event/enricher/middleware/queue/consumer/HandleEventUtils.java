@@ -5,16 +5,16 @@ import org.springframework.messaging.MessageHeaders;
 
 @Slf4j
 public class HandleEventUtils {
-    private static final String RADD_ALT_IMPORT_ASYNC = "RADD-ALT IMPORT - ";
+    private static final String PAPER_EVENT_ASYNC = "PAPER_EVENT_ENRICHER ASYNC - ";
 
     private HandleEventUtils() {
     }
 
     public static void handleException(MessageHeaders headers, Throwable t) {
         if (headers != null) {
-            log.error(RADD_ALT_IMPORT_ASYNC + "Generic exception ex= {}", t.getMessage(), t);
+            log.error(PAPER_EVENT_ASYNC + "Generic exception ex= {}", t.getMessage(), t);
         } else {
-            log.error(RADD_ALT_IMPORT_ASYNC + "Generic exception ex ", t);
+            log.error(PAPER_EVENT_ASYNC + "Generic exception ex ", t);
         }
     }
 }
