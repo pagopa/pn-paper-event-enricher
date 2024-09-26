@@ -18,7 +18,7 @@ class SafeStorageClient {
         })
 
         const data = await response.json();
-
+        console.log("response SafeStorage: ", data);
         return data.download.url;
     }
 
