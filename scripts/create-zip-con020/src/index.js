@@ -51,6 +51,7 @@ async function main() {
             const registeredLetterCode = event.registeredLetterCode;
             const printedPdf = event.printedPdf;
             const formattedFileKey = printedPdf.replace("safestorage://", "");
+            console.log("formattedFileKey: ", formattedFileKey);
             const presignedUrl =  await safeStorageClient.getPresignedDownloadUrl(formattedFileKey);
             const fileResponse = await safeStorageClient.downloadFile(presignedUrl);
             const filePath = await uploadToTmpDir(fileResponse, formattedFileKey, tempDir);
