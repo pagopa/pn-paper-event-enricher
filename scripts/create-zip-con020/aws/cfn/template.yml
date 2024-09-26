@@ -86,6 +86,27 @@ Resources:
                   - ec2:DescribeNetworkInterfacePermissions
                 Resource: '*'
 
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${OutputBucket.Arn}/*"
+
   Con020CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -119,6 +140,56 @@ Resources:
         VpcId: !Ref VpcId
         Subnets: !Ref Subnets
         SecurityGroupIds: !Ref SecurityGroupIds
+
+  GeneratePresignedUrlLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "GeneratePresignedUrl-${Env}"
+      Handler: "index.handler"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs20.x
+      Timeout: 30
+      Environment:
+        Variables:
+          OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
+          AWS_REGION: !Ref "AWS::Region"
+      Code:
+        ZipFile: |
+          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+          const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+          
+          const s3Client = new S3Client({ region: process.env.AWS_REGION });
+          
+          exports.handler = async (event) => {
+            try {
+              const { fileName } = event;
+              const bucketName = process.env.OUTPUT_BUCKET_NAME;
+          
+              const command = new GetObjectCommand({
+                Bucket: bucketName,
+                Key: fileName,
+              });
+          
+              // Generare la presigned URL valida per 7 giorni (604800 secondi)
+              const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
+          
+              return {
+                statusCode: 200,
+                body: JSON.stringify({
+                  message: 'Presigned URL generated successfully',
+                  presignedUrl: presignedUrl,
+                }),
+              };
+            } catch (err) {
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  message: 'Error generating presigned URL',
+                  error: err.message,
+                }),
+              };
+            }
+          };
 
 Parameters:
   PaId:
