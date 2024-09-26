@@ -42,10 +42,7 @@ async function main() {
         const iun = event.iun;
         console.log("reading iun", iun);
         const notification = await awsClient.getNotification(iun);
-        if(notification == null) {
-            console.error('Notification with iun ' + iun + ' does not exist');
-        }
-        if(paId === notification.senderPaId.S) {
+        if(notification && paId === notification.senderPaId.S) {
             console.log('Processing of IUN:', iun);
             const recIndex = event.recIndex;
             const sendRequestId = editSendRequestIdWithSendPrefix(event.sendRequestId);
