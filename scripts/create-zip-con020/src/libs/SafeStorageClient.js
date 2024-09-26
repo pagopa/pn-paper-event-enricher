@@ -13,7 +13,7 @@ class SafeStorageClient {
         const response = await fetch(`${this._safeStorageUrl}/safe-storage/v1/files/${fileKey}`, {
             method: 'GET',
             headers: {
-                'x-pagopa-safestorage-cx-id': 'pn-delivery'
+                'x-pagopa-safestorage-cx-id': 'pn-paper-event-enricher'
             }
         })
 
