@@ -105,7 +105,7 @@ Resources:
                 Action:
                   - s3:GetObject
                 Resource:
-                  - !Sub "${OutputBucket.Arn}/*"
+                  - !Sub "${Con020OutputBucket.Arn}/*"
 
   Con020CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -152,13 +152,12 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
-          AWS_REGION: !Ref "AWS::Region"
       Code:
         ZipFile: |
           const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
           const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
           
-          const s3Client = new S3Client({ region: process.env.AWS_REGION });
+          const s3Client = new S3Client({});
           
           exports.handler = async (event) => {
             try {
@@ -244,3 +243,6 @@ Outputs:
   Con020OutputBucket:
     Value: !Ref Con020OutputBucket
     Description: "Nome bucket di output dove esportare lo zip"
+  GeneratePresignedUrlLambdaName:
+    Value: !Ref GeneratePresignedUrlLambda
+    Description: "Nome lambda che restituisce un presigned URL"
