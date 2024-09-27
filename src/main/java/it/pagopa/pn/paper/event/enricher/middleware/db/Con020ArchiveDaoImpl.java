@@ -36,7 +36,7 @@ public class Con020ArchiveDaoImpl extends BaseDao<CON020ArchiveEntity> implement
         UpdateItemEnhancedRequest.Builder<CON020ArchiveEntity> updateItemEnhancedRequest = UpdateItemEnhancedRequest
                 .builder(CON020ArchiveEntity.class)
                 .item(entity)
-                .conditionExpression(Expression.builder().expression(buildExistingConditionExpression(true, COL_HASH_KEY)).build())
+            //    .conditionExpression(Expression.builder().expression(buildExistingConditionExpression(true, COL_HASH_KEY)).build())
                 .ignoreNulls(true);
 
         return updateItem(updateItemEnhancedRequest, entity.getArchiveFileKey());

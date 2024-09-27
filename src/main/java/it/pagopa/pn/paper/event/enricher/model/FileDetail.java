@@ -10,13 +10,11 @@ public class FileDetail {
     private String registeredLetterCode;
     private String filename;
     private InputStream content;
-    private byte[] contentBytes;
     private String fileKey;
 
-    public FileDetail(String filename, InputStream content, String fileKey, byte[] contentBytes) {
+    public FileDetail(String filename, String fileKey, InputStream content) {
         this.filename = filename;
-        this.content = content;
         this.fileKey = fileKey;
-        this.contentBytes = contentBytes;
+        this.content = content;
     }
 }
