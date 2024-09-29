@@ -15,6 +15,8 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,11 +54,11 @@ public class FileService {
         FileDetail fileDetail;
         if (zipArchiveEntry.getName().endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
             indexDataMap.putAll(parseBol(getContent(zipInputStream, zipArchiveEntry.getName())));
+            log.info("Parsed bol file: [{}] from archive and enriched indexDataMap with {} entry", zipArchiveEntry.getName(), indexDataMap.size());
             fileDetail = new FileDetail(zipArchiveEntry.getName(), null, null);
         } else if (zipArchiveEntry.getName().endsWith(PDF.getValue())) {
-            log.info("Extracting pdf file from archive");
             byte[] content = getContent(zipInputStream, zipArchiveEntry.getName());
-            log.info("pdf: {}, {}", zipArchiveEntry.getName(), content.length);
+            log.info("pdf: {} extrated with content lenght: {}", zipArchiveEntry.getName(), content.length);
             return safeStorageService.callSelfStorageCreateFileAndUpload(content, Sha256Handler.computeSha256(content))
                     .map(fileKey -> new FileDetail(zipArchiveEntry.getName(), fileKey, null));
         } else if (zipArchiveEntry.getName().endsWith(P7M.getValue())) {
@@ -76,5 +78,31 @@ public class FileService {
     public Flux<byte[]> downloadFile(String url) {
         return safeStorageService.downloadContent(url);
     }
+
+    public void writeToPipedOutputStream(byte[] bytes, PipedOutputStream pipedOutputStream) {
+        try {
+            pipedOutputStream.write(bytes);
+        } catch (IOException e) {
+            log.error("Error writing to PipedOutputStream", e);
+            throw new PaperEventEnricherException("Unable to write to PipedOutputStream", 500, e.getMessage());
+        }
+    }
+
+    public PipedOutputStream initializePipedOutputStream(PipedInputStream pipedInputStream) {
+        try {
+            return new PipedOutputStream(pipedInputStream);
+        } catch (IOException e) {
+            throw new PaperEventEnricherException("Unable to create PipedOutputStream", 500, e.getMessage());
+        }
+    }
+
+    public void closeStream(PipedOutputStream pipedOutputStream) {
+        try {
+            pipedOutputStream.close();
+        } catch (IOException e) {
+            log.error("Error closing PipedOutputStream", e);
+        }
+    }
+
 
 }

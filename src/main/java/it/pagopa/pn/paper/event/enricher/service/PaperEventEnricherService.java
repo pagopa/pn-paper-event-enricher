@@ -1,9 +1,9 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
-import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
+import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020BaseEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
@@ -18,10 +18,12 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
-import java.util.*;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
@@ -35,7 +37,6 @@ public class PaperEventEnricherService {
     private final Con020ArchiveDao con020ArchiveDao;
     private final Con020EnricherDao con020EnricherDao;
     private final FileService fileService;
-    private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
 
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
@@ -50,15 +51,22 @@ public class PaperEventEnricherService {
                 .onErrorResume(PaperEventEnricherException.class, throwable -> Mono.empty());
     }
 
-    public Mono<Void> handlePaperEventEnricherEvent(PaperArchiveEvent.Payload payload) {
+    public Mono<CON020ArchiveEntity> handlePaperEventEnricherEvent(PaperArchiveEvent.Payload payload) {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         String archiveFileKey = payload.getArchiveFileKey();
-        return con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSING.name()))
+        PipedInputStream pipedInputStream = new PipedInputStream();
+        PipedOutputStream pipedOutputStream = fileService.initializePipedOutputStream(pipedInputStream);
+        log.info("inizialized PipedOutputStream");
+
+        con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSING.name()))
+                .doOnNext(con020ArchiveEntity -> log.info("Archive entity updated: {} to PROCESSING", con020ArchiveEntity.getHashKey()))
                 .flatMap(con020ArchiveEntity -> fileService.retrieveDownloadUrl(archiveFileKey))
                 .flatMapMany(fileService::downloadFile)
-                .collectList()
-                .flatMap(bytes -> Mono.just(createInputStreamFromByteArray(bytes)))
-                .flatMap(inputStream -> fileService.extractFileFromBin(new ZipArchiveInputStream(inputStream)))
+                .doOnNext(bytes -> fileService.writeToPipedOutputStream(bytes, pipedOutputStream))
+                .doFinally(signalType -> fileService.closeStream(pipedOutputStream))
+                .subscribe();
+
+        return fileService.extractFileFromBin(new ZipArchiveInputStream(pipedInputStream))
                 .doOnNext(fileDetail -> log.info("FileDetail: {}", fileDetail.getFilename()))
                 .flatMapMany(fileDetail -> {
                     AtomicInteger uploadedFileCounter = new AtomicInteger(0);
@@ -66,8 +74,7 @@ public class PaperEventEnricherService {
                 })
                 .collectList()
                 .flatMap(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey))
-                .flatMap(unused -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())))
-                .then();
+                .flatMap(unused -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())));
     }
 
     private Mono<List<String>> updateEnrichedEntities(List<FileDetail> fileDetails, Map<String, IndexData> indexDataMap, String archiveFileKey) {
@@ -80,23 +87,6 @@ public class PaperEventEnricherService {
                 })
                 .collectList();
     }
-
-    public static InputStream createInputStreamFromByteArray(List<byte[]> byteData) {
-        return new SequenceInputStream(new Enumeration<>() {
-            private int index = 0;
-
-            @Override
-            public boolean hasMoreElements() {
-                return index < byteData.size();
-            }
-
-            @Override
-            public InputStream nextElement() {
-                return new ByteArrayInputStream(byteData.get(index++));
-            }
-        });
-    }
-
 
     private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
