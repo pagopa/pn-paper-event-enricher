@@ -12,9 +12,6 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.bouncycastle.cms.CMSProcessable;
-import org.bouncycastle.cms.CMSSignedData;
-import org.bouncycastle.cms.SignerInformation;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -23,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -100,7 +96,7 @@ public class PaperEventEnricherUtils {
         retrieveRecIndexFromRequestId(metadata, requestId);
 
         metadata.setEventTime(payload.getEventTimestamp());
-        metadata.setGenerationDate(payload.getAnalogMail().getStatusDateTime());
+        metadata.setGenerationTime(payload.getAnalogMail().getStatusDateTime());
         metadata.setSendRequestId(payload.getAnalogMail().getRequestId());
         metadata.setRegisteredLetterCode(payload.getAnalogMail().getRegisteredLetterCode());
         metadata.setArchiveFileKey(archiveUri);

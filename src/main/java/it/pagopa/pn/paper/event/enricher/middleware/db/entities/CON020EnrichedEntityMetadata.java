@@ -14,7 +14,7 @@ import java.time.Instant;
 public class CON020EnrichedEntityMetadata {
 
     public static final String COL_IUN = "iun";
-    public static final String COL_GENERATIONDATE = "generationDate";
+    public static final String COL_GENERATIONTIME = "generationTime";
     public static final String COL_RECINDEX = "recIndex";
     public static final String COL_SENDREQUESTID = "sendRequestId";
     public static final String COL_REGISTEREDLETTERCORE = "registeredLetterCode";
@@ -22,7 +22,7 @@ public class CON020EnrichedEntityMetadata {
     public static final String COL_ARCHIVEFILEKEY = "archiveFileKey";
 
     private String iun;
-    private Instant generationDate;
+    private Instant generationTime;
     private String recIndex;
     private String sendRequestId;
     private String registeredLetterCode;

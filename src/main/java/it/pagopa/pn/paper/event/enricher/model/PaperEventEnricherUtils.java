@@ -92,7 +92,7 @@ public class PaperEventEnricherUtils {
         retrieveRecIndexFromRequestId(metadata, requestId);
 
         metadata.setEventTime(payload.getEventTimestamp());
-        metadata.setGenerationDate(payload.getAnalogMail().getStatusDateTime());
+        metadata.setGenerationTime(payload.getAnalogMail().getStatusDateTime());
         metadata.setSendRequestId(payload.getAnalogMail().getRequestId());
         metadata.setRegisteredLetterCode(payload.getAnalogMail().getRegisteredLetterCode());
         metadata.setArchiveFileKey(archiveUri);
