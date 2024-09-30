@@ -167,10 +167,26 @@ Resources:
       FunctionName: Lambda-Archives-Download
       Code:
         ZipFile: |
-          const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+          const { S3Client, GetObjectCommand, HeadObjectCommand, ListObjectsCommand, GetObjectTaggingCommand } = require('@aws-sdk/client-s3');
           const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
           
           const s3Client = new S3Client({});
+
+          async function getDescription( s3Client, fileName ) {
+            const bucketName = process.env.OUTPUT_BUCKET_NAME;
+
+            const getTagCommand = new GetObjectTaggingCommand({
+                Bucket: bucketName,
+                Key: fileName
+              });
+            console.log('GetTag Command: \n' + JSON.stringify(getTagCommand, null, 2));
+            const getTagResponse = await s3Client.send( getTagCommand );
+            console.log('GetTag Response: \n' + JSON.stringify(getTagResponse, null, 2));
+
+            const descriptionTags = (getTagResponse.TagSet || []).filter( el => el.Key == 'description' )
+
+            return descriptionTags.length ? descriptionTags[0].Value : 'No description tag on key ' + fileName;
+          }
           
           exports.handler = async (event) => {
             console.log('Lambda Input Event: \n' + JSON.stringify(event, null, 2));
@@ -214,18 +230,39 @@ Resources:
                 };
               }
               else {
-                result = {"statusCode": 200, "body": "Listing"};
+                const listCommand = new ListObjectsCommand({
+                  Bucket: bucketName,
+                  Prefix: 'CON020EXPORT_'
+                });
+                console.log('List Command: \n' + JSON.stringify(listCommand, null, 2));
+                const listResponse = await s3Client.send( listCommand );
+                console.log('List Response: \n' + JSON.stringify(listResponse, null, 2));
+                
+                const resultBodyArray = ( listResponse.Contents || [] ).map( el => ({
+                  archiveId: el.Key.replace(/\.zip$/, ''),
+                  description: null,
+                  creationDate: el.LastModified
+                }))
+
+                for( el of resultBodyArray ) {
+                  el.description = await getDescription( s3Client, el.archiveId + '.zip' )
+                }
+
+                const resultBody = {
+                  archives: resultBodyArray
+                }
+                result = {"statusCode": 200, "body": JSON.stringify( resultBody )};
               }
 
               return result;
             } 
             catch (err) {
-              console.error("Error during presigned url preparation ", err);
+              console.error("Error during response preparation ", err);
 
               return {
                 statusCode: 500,
                 body: JSON.stringify({
-                  message: 'Error generating presigned URL',
+                  message: 'Error generating response (' + ( new Date()).toISOString() + ')',
                   error: err.message,
                 }),
               };
@@ -265,6 +302,7 @@ Resources:
                   - s3:GetObject
                   - s3:HeadObject
                   - s3:ListBucket
+                  - s3:GetObjectTagging
                 Resource:
                   - !Sub "${Con020OutputBucket.Arn}"
                   - !Sub "${Con020OutputBucket.Arn}/*"
