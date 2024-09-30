@@ -167,36 +167,46 @@ Resources:
       FunctionName: Lambda-Archives-Download
       Code:
         ZipFile: |
-          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+          const { S3Client, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
           const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
           
           const s3Client = new S3Client({});
           
           exports.handler = async (event) => {
-            console.log('Event: \n' + JSON.stringify(event, null, 2));
-            
+            console.log('Lambda Input Event: \n' + JSON.stringify(event, null, 2));
             const bucketName = process.env.OUTPUT_BUCKET_NAME;
             
             try {
               let result;
               if( event.resource == '/con020/{archiveId}') {
-                const fileName = event.path.replace('.*/','');
+                const fileName = event.path.replace(/.*\//,'') + '.zip';
                 console.log('Generating presigned url for file=' + fileName);
-          
+
+                const headCommand = new HeadObjectCommand({
+                  Bucket: bucketName,
+                  Key: fileName,
+                  ChecksumMode: "ENABLED",
+                });
+                console.log('Head Command: \n' + JSON.stringify(headCommand, null, 2));
+                const headResponse = await s3Client.send( headCommand );
+                console.log('Head Response: \n' + JSON.stringify(headResponse, null, 2));
+                
                 const command = new GetObjectCommand({
                   Bucket: bucketName,
                   Key: fileName,
                 });
-            
+                console.log('GetObjectCommand Command: \n' + JSON.stringify(command, null, 2));
                 // Generare la presigned URL valida per 7 giorni (604800 secondi)
                 const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
-          
-                return {
+                console.log('Generated presignedUrl: \n' + presignedUrl);
+
+                result = {
                   statusCode: 200,
                   body: JSON.stringify({
                     archiveId: fileName,
                     contentType: 'application/zip',
-                    checksum: '',
+                    contentLength: headResponse.ContentLength,
+                    checksum: headResponse.ChecksumSHA256,
                     download: {
                       url: presignedUrl
                     }
@@ -210,6 +220,8 @@ Resources:
               return result;
             } 
             catch (err) {
+              console.error("Error during presigned url preparation ", err);
+
               return {
                 statusCode: 500,
                 body: JSON.stringify({
@@ -247,12 +259,23 @@ Resources:
                   - "logs:PutLogEvents"
                 Resource: 
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Lambda-Archives-Download:*"
-              - Sid: ReadOutBucket
+              - Sid: ReadOutputBucket
                 Effect: Allow
                 Action:
                   - s3:GetObject
+                  - s3:HeadObject
+                  - s3:ListBucket
                 Resource:
+                  - !Sub "${Con020OutputBucket.Arn}"
                   - !Sub "${Con020OutputBucket.Arn}/*"
+              - Sid: DecryptObjects
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource:
+                  - !Sub "${Con020KmsBucket.Arn}"
+          
 
 
   ArchivesDownloadFunctionLogGroup:
@@ -415,12 +438,12 @@ Resources:
               properties:
                 archiveId:
                   type: string
-                message:
-                  type: string
                 contentType:
                   type: string
                 checksum:
                   type: string
+                contentLength:
+                  type: integer
                 download:
                   $ref: '#/components/schemas/ArchiveDownloadData'
             ArchiveDownloadData:
