@@ -124,27 +124,6 @@ Resources:
                   - ec2:DescribeNetworkInterfacePermissions
                 Resource: '*'
 
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: LambdaS3AccessPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource:
-                  - !Sub "${Con020OutputBucket.Arn}/*"
-
   Con020CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -188,24 +167,61 @@ Resources:
       FunctionName: Lambda-Archives-Download
       Code:
         ZipFile: |
+          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+          const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
           
-          exports.handler = async(event, context) => {
-            console.log("EVENT: \n" + JSON.stringify(event, null, 2));
+          const s3Client = new S3Client({});
+          
+          exports.handler = async (event) => {
+            console.log('Event: \n' + JSON.stringify(event, null, 2));
+            
+            const bucketName = process.env.OUTPUT_BUCKET_NAME;
+            
+            try {
+              let result;
+              if( event.resource == '/con020/{archiveId}') {
+                const fileName = event.path.replace('.*/','');
+                console.log('Generating presigned url for file=' + fileName);
+          
+                const command = new GetObjectCommand({
+                  Bucket: bucketName,
+                  Key: fileName,
+                });
+            
+                // Generare la presigned URL valida per 7 giorni (604800 secondi)
+                const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
+          
+                return {
+                  statusCode: 200,
+                  body: JSON.stringify({
+                    archiveId: fileName,
+                    contentType: 'application/zip',
+                    checksum: '',
+                    download: {
+                      url: presignedUrl
+                    }
+                  }),
+                };
+              }
+              else {
+                result = {"statusCode": 200, "body": "Listing"};
+              }
 
-            let result;
-
-            if( event.resourcePath == '/con020/{archiveId}') {
-              let archiveId = event.path.replace('.*/', '');
-              result = {"statusCode": 200, "body": "Send single response with presigned url for "+ archiveId};
-            }
-            else {
-              result = {"statusCode": 200, "body": "Listing"};
-            }
-            return result;
+              return result;
+            } 
+            catch (err) {
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  message: 'Error generating presigned URL',
+                  error: err.message,
+                }),
+              };
+            } 
           };
       Environment:
         Variables:
-          NotUsed: 'Not Used'
+          OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
       Timeout: 30
       Role: !Sub '${ArchivesDownloadFunctionRole.Arn}'
 
@@ -231,6 +247,13 @@ Resources:
                   - "logs:PutLogEvents"
                 Resource: 
                   - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Lambda-Archives-Download:*"
+              - Sid: ReadOutBucket
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${Con020OutputBucket.Arn}/*"
+
 
   ArchivesDownloadFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -392,12 +415,12 @@ Resources:
               properties:
                 archiveId:
                   type: string
+                message:
+                  type: string
                 contentType:
                   type: string
                 checksum:
                   type: string
-                contentLength:
-                  type: integer
                 download:
                   $ref: '#/components/schemas/ArchiveDownloadData'
             ArchiveDownloadData:
@@ -519,56 +542,7 @@ Resources:
           - !Sub 'api.${Env}.notifichedigitali.it'
       RestApiId: !Ref ArchiveDownloaderRestApi
       Stage: !Ref ArchiveDownloaderRestApiStage
-    
 
-  GeneratePresignedUrlLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub "GeneratePresignedUrl-${Env}"
-      Handler: "index.handler"
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Runtime: nodejs20.x
-      Timeout: 30
-      Environment:
-        Variables:
-          OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
-      Code:
-        ZipFile: |
-          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
-          const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-          
-          const s3Client = new S3Client({});
-          
-          exports.handler = async (event) => {
-            try {
-              const { fileName } = event;
-              const bucketName = process.env.OUTPUT_BUCKET_NAME;
-          
-              const command = new GetObjectCommand({
-                Bucket: bucketName,
-                Key: fileName,
-              });
-          
-              // Generare la presigned URL valida per 7 giorni (604800 secondi)
-              const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
-          
-              return {
-                statusCode: 200,
-                body: JSON.stringify({
-                  message: 'Presigned URL generated successfully',
-                  presignedUrl: presignedUrl,
-                }),
-              };
-            } catch (err) {
-              return {
-                statusCode: 500,
-                body: JSON.stringify({
-                  message: 'Error generating presigned URL',
-                  error: err.message,
-                }),
-              };
-            }
-          };
 
 Parameters:
   PaId:
@@ -624,5 +598,5 @@ Outputs:
     Value: !Ref Con020OutputBucket
     Description: "Nome bucket di output dove esportare lo zip"
   GeneratePresignedUrlLambdaName:
-    Value: !Ref GeneratePresignedUrlLambda
+    Value: !Ref ArchivesDownloadFunction
     Description: "Nome lambda che restituisce un presigned URL"
