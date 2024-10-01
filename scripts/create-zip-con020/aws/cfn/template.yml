@@ -77,6 +77,18 @@ Resources:
                   - !Sub "${Con020InputBucket.Arn}/*"
                   - !GetAtt Con020OutputBucket.Arn
                   - !Sub "${Con020OutputBucket.Arn}/*"
+
+        - PolicyName: CodeBuildKMSDecryptPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt Con020KmsBucket.Arn
+
         - PolicyName: CodeBuildDynamoDBPolicy
           PolicyDocument:
             Version: '2012-10-17'
