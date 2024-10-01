@@ -3,16 +3,47 @@ Description: CodeBuild project to run JS script from GitHub
 
 Resources:
 
+  Con020KmsBucket:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: "Symmetric Encryption KMS for CON020's Buckets"
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable Permissions on all user and roles
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
   Con020InputBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${AWS::StackName}-con020-input-bucket-${Env}"
       AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !GetAtt Con020KmsBucket.Arn
   Con020OutputBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${AWS::StackName}-con020-output-bucket-${Env}"
       AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !GetAtt Con020KmsBucket.Arn
 
   CodeBuildRole:
     Type: AWS::IAM::Role
@@ -39,6 +70,18 @@ Resources:
                   - !Sub "${Con020InputBucket.Arn}/*"
                   - !GetAtt Con020OutputBucket.Arn
                   - !Sub "${Con020OutputBucket.Arn}/*"
+
+        - PolicyName: CodeBuildKMSDecryptPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt Con020KmsBucket.Arn
+
         - PolicyName: CodeBuildDynamoDBPolicy
           PolicyDocument:
             Version: '2012-10-17'

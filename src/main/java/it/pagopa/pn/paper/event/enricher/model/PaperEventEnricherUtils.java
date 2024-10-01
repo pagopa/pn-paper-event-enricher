@@ -92,7 +92,7 @@ public class PaperEventEnricherUtils {
         retrieveRecIndexFromRequestId(metadata, requestId);
 
         metadata.setEventTime(payload.getEventTimestamp());
-        metadata.setGenerationDate(payload.getAnalogMail().getStatusDateTime());
+        metadata.setGenerationTime(payload.getAnalogMail().getStatusDateTime());
         metadata.setSendRequestId(payload.getAnalogMail().getRequestId());
         metadata.setRegisteredLetterCode(payload.getAnalogMail().getRegisteredLetterCode());
         metadata.setArchiveFileKey(archiveUri);
@@ -120,7 +120,7 @@ public class PaperEventEnricherUtils {
             Matcher matcher = pattern.matcher(requestId);
 
             if (matcher.find()) {
-                metadata.setRecIndex(matcher.group(1));
+                metadata.setRecIndex(Integer.parseInt(matcher.group(1)));
             } else {
                 log.warn(ERROR_CODE_INVALID_REQUESTID + ": RecIndex format not valid in requestId [{}]", requestId);
             }
