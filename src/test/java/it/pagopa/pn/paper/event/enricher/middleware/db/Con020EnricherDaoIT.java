@@ -29,7 +29,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         metadata.setIun("iun");
         metadata.setEventTime(Instant.now());
         metadata.setGenerationTime(Instant.now());
-        metadata.setRecIndex("recIndex");
+        metadata.setRecIndex(0);
         metadata.setSendRequestId("sendRequestId");
         con020EnrichedEntity.setTtl(Instant.now().plus(365, ChronoUnit.DAYS).toEpochMilli());
         metadata.setRegisteredLetterCode("registeredLetterCode");

@@ -101,8 +101,8 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         Map<String, AttributeValue> metadataMap = new HashMap<>();
         metadataMap.put(COL_IUN, AttributeValue.builder().s(metadata.getIun()).build());
         metadataMap.put(COL_GENERATIONTIME, AttributeValue.builder().s(metadata.getGenerationTime().toString()).build());
-        if(StringUtils.isNotBlank(metadata.getRecIndex())) {
-            metadataMap.put(COL_RECINDEX, AttributeValue.builder().n(metadata.getRecIndex()).build());
+        if(metadata.getRecIndex() != null) {
+            metadataMap.put(COL_RECINDEX, AttributeValue.builder().n(metadata.getRecIndex().toString()).build());
         }
         metadataMap.put(COL_SENDREQUESTID, AttributeValue.builder().s(metadata.getSendRequestId()).build());
         metadataMap.put(COL_REGISTEREDLETTERCORE, AttributeValue.builder().s(metadata.getRegisteredLetterCode()).build());

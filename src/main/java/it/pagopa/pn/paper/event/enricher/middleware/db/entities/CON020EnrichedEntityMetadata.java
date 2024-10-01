@@ -23,7 +23,7 @@ public class CON020EnrichedEntityMetadata {
 
     private String iun;
     private Instant generationTime;
-    private String recIndex;
+    private Integer recIndex;
     private String sendRequestId;
     private String registeredLetterCode;
     private Instant eventTime;
