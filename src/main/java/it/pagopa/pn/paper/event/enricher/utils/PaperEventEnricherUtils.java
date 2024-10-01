@@ -124,7 +124,7 @@ public class PaperEventEnricherUtils {
             Matcher matcher = pattern.matcher(requestId);
 
             if (matcher.find()) {
-                metadata.setRecIndex(Integer.getInteger(matcher.group(1)));
+                metadata.setRecIndex(Integer.parseInt(matcher.group(1)));
             } else {
                 log.warn(ERROR_CODE_INVALID_REQUESTID + ": RecIndex format not valid in requestId [{}]", requestId);
             }
