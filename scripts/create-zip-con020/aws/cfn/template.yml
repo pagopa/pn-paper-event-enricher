@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CodeBuild project to run JS script from GitHub
 
+Transform:
+  - UpdateDeploymentTransform
+
+
+Conditions:
+     IsProd: !Equals [ !Ref Env, "prod"]
+     IsAlarmOn4xxEnabled: !Equals [ !Ref AlarmOn4xxEnabled, "true"]
+
 Resources:
 
   Con020KmsBucket:
@@ -162,6 +170,516 @@ Resources:
         VpcId: !Ref VpcId
         Subnets: !Ref Subnets
         SecurityGroupIds: !Ref SecurityGroupIds
+  
+
+  ArchivesDownloadFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs18.x
+      Handler: "index.handler"
+      FunctionName: Lambda-Archives-Download
+      Code:
+        ZipFile: |
+          const { S3Client, GetObjectCommand, HeadObjectCommand, ListObjectsCommand, GetObjectTaggingCommand } = require('@aws-sdk/client-s3');
+          const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+          
+          const s3Client = new S3Client({});
+
+          async function getDescription( s3Client, fileName ) {
+            const bucketName = process.env.OUTPUT_BUCKET_NAME;
+
+            const getTagCommand = new GetObjectTaggingCommand({
+                Bucket: bucketName,
+                Key: fileName
+              });
+            console.log('GetTag Command: \n' + JSON.stringify(getTagCommand, null, 2));
+            const getTagResponse = await s3Client.send( getTagCommand );
+            console.log('GetTag Response: \n' + JSON.stringify(getTagResponse, null, 2));
+
+            const descriptionTags = (getTagResponse.TagSet || []).filter( el => el.Key == 'description' )
+
+            return descriptionTags.length ? descriptionTags[0].Value : 'No description tag on key ' + fileName;
+          }
+          
+          exports.handler = async (event) => {
+            console.log('Lambda Input Event: \n' + JSON.stringify(event, null, 2));
+            const bucketName = process.env.OUTPUT_BUCKET_NAME;
+            
+            try {
+              let result;
+              if( event.resource == '/con020/{archiveId}') {
+                const fileName = event.path.replace(/.*\//,'') + '.zip';
+                console.log('Generating presigned url for file=' + fileName);
+
+                const headCommand = new HeadObjectCommand({
+                  Bucket: bucketName,
+                  Key: fileName,
+                  ChecksumMode: "ENABLED",
+                });
+                console.log('Head Command: \n' + JSON.stringify(headCommand, null, 2));
+                const headResponse = await s3Client.send( headCommand );
+                console.log('Head Response: \n' + JSON.stringify(headResponse, null, 2));
+                
+                const command = new GetObjectCommand({
+                  Bucket: bucketName,
+                  Key: fileName,
+                });
+                console.log('GetObjectCommand Command: \n' + JSON.stringify(command, null, 2));
+                // Generare la presigned URL valida per 7 giorni (604800 secondi)
+                const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
+                console.log('Generated presignedUrl: \n' + presignedUrl);
+
+                result = {
+                  statusCode: 200,
+                  body: JSON.stringify({
+                    archiveId: fileName,
+                    contentType: 'application/zip',
+                    contentLength: headResponse.ContentLength,
+                    checksum: headResponse.ChecksumSHA256,
+                    download: {
+                      url: presignedUrl
+                    }
+                  }),
+                };
+              }
+              else {
+                const listCommand = new ListObjectsCommand({
+                  Bucket: bucketName,
+                  Prefix: 'CON020EXPORT_'
+                });
+                console.log('List Command: \n' + JSON.stringify(listCommand, null, 2));
+                const listResponse = await s3Client.send( listCommand );
+                console.log('List Response: \n' + JSON.stringify(listResponse, null, 2));
+                
+                const resultBodyArray = ( listResponse.Contents || [] ).map( el => ({
+                  archiveId: el.Key.replace(/\.zip$/, ''),
+                  description: null,
+                  creationDate: el.LastModified
+                }))
+
+                for( el of resultBodyArray ) {
+                  el.description = await getDescription( s3Client, el.archiveId + '.zip' )
+                }
+
+                const resultBody = {
+                  archives: resultBodyArray
+                }
+                result = {"statusCode": 200, "body": JSON.stringify( resultBody )};
+              }
+
+              return result;
+            } 
+            catch (err) {
+              console.error("Error during response preparation ", err);
+
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  message: 'Error generating response (' + ( new Date()).toISOString() + ')',
+                  error: err.message,
+                }),
+              };
+            } 
+          };
+      Environment:
+        Variables:
+          OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
+      Timeout: 28
+      Role: !Sub '${ArchivesDownloadFunctionRole.Arn}'
+
+  ArchivesDownloadFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ArchivesDownloadFunctionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: AllowLog
+                Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: 
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/Lambda-Archives-Download:*"
+              - Sid: ReadOutputBucket
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:HeadObject
+                  - s3:ListBucket
+                  - s3:GetObjectTagging
+                Resource:
+                  - !Sub "${Con020OutputBucket.Arn}"
+                  - !Sub "${Con020OutputBucket.Arn}/*"
+              - Sid: DecryptObjects
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource:
+                  - !Sub "${Con020KmsBucket.Arn}"
+          
+
+
+  ArchivesDownloadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy : Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ArchivesDownloadFunction}"
+      RetentionInDays: 5
+  
+  PermissionForApiGwToInvokeArchivesDownloadLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ArchivesDownloadFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ArchiveDownloaderRestApi}/*"
+  
+  ApiKeyLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: 'pn-ApiKeyAuthorizerV2Lambda'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ArchiveDownloaderRestApi}/authorizers/*"
+
+
+  # API definition
+  ArchiveDownloaderRestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Tags:
+        - Key: "PN_APIGW_TYPE"
+          Value: "B2B"
+        - Key: "PN_SERVICE_PATH"
+          Value: archives
+      Name: 'archive-handler-public-api-B2B-openapi'
+      FailOnWarnings: true
+      Mode: overwrite
+      DisableExecuteApiEndpoint: true      
+      ApiKeySourceType: AUTHORIZER
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Body: |
+        openapi: 3.0.1
+        info:
+          title: >-
+            ${stageVariables.ProjectName}-${stageVariables.MicroServiceUniqueName}-${stageVariables.IntendedUsage}
+          version: OMsVylWJK/+AWr7/hp5kaPxQ+DPGAtiaEEp2dNcIcjQ=
+        servers:
+          - url: https://${stageVariables.DnsName}/{basePath}
+            variables:
+              basePath:
+                default: /${stageVariables.ServiceApiPath}
+            x-amazon-apigateway-endpoint-configuration:
+              disableExecuteApiEndpoint: true
+        paths:
+          /con020/:
+            get:
+              summary: Elenca archivi della soluzione provvisoria con020
+              description: Elenca gli stream di eventi
+              tags:
+                - Archives
+              operationId: listArchives
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ArchiveListResponse'
+              security:
+                - pn-auth-fleet_ApiKeyAuthorizerV2_openapi: []
+                - api_key_openapi: []
+              x-amazon-apigateway-integration:
+                uri: >-
+                  arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:Lambda-Archives-Download/invocations
+                httpMethod: POST
+                requestParameters:
+                  integration.request.header.x-pagopa-pn-cx-id: context.authorizer.cx_id
+                  integration.request.header.x-pagopa-pn-cx-role: context.authorizer.cx_role
+                  integration.request.header.x-pagopa-pn-uid: context.authorizer.uid
+                  integration.request.header.x-pagopa-pn-jti: context.authorizer.cx_jti
+                  integration.request.header.x-pagopa-pn-cx-type: context.authorizer.cx_type
+                  integration.request.header.x-pagopa-pn-cx-groups: context.authorizer.cx_groups
+                  integration.request.header.x-pagopa-pn-src-ch-details: context.authorizer.sourceChannelDetails
+                  integration.request.header.x-pagopa-pn-src-ch: '''B2B'''
+                passthroughBehavior: when_no_match
+                contentHandling: CONVERT_TO_TEXT
+                timeoutInMillis: 29000
+                type: aws_proxy
+          /con020/{archiveId}:
+            get:
+              summary: Permette il download di un archivio
+              description: Permette il download di un archivio
+              tags:
+                - Archives
+              operationId: getArchive
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ArchiveResponse'
+              security:
+                - pn-auth-fleet_ApiKeyAuthorizerV2_openapi: []
+                - api_key_openapi: []
+              x-amazon-apigateway-integration:
+                uri: >-
+                  arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:Lambda-Archives-Download/invocations
+                httpMethod: POST
+                requestParameters:
+                  integration.request.header.x-pagopa-pn-cx-id: context.authorizer.cx_id
+                  integration.request.header.x-pagopa-pn-cx-role: context.authorizer.cx_role
+                  integration.request.header.x-pagopa-pn-uid: context.authorizer.uid
+                  integration.request.header.x-pagopa-pn-jti: context.authorizer.cx_jti
+                  integration.request.header.x-pagopa-pn-cx-type: context.authorizer.cx_type
+                  integration.request.header.x-pagopa-pn-cx-groups: context.authorizer.cx_groups
+                  integration.request.header.x-pagopa-pn-src-ch-details: context.authorizer.sourceChannelDetails
+                  integration.request.header.x-pagopa-pn-src-ch: '''B2B'''
+                  integration.request.path.archiveId: method.request.path.archiveId
+                passthroughBehavior: when_no_match
+                contentHandling: CONVERT_TO_TEXT
+                timeoutInMillis: 29000
+                type: aws_proxy  
+        components:
+          parameters: {}
+          schemas:
+            ArchiveListResponse:
+              type: object
+              required:
+                - archives
+              properties:
+                archives:
+                  type: array
+                  items: 
+                    $ref: '#/components/schemas/ArchiveListElement'
+            ArchiveListElement:
+              type: object
+              required:
+                - archiveId
+                - description
+                - creationDate
+              properties:
+                archiveId:
+                  type: string
+                  maxLength: 128
+                description:
+                  type: string
+                  maxLength: 512
+                creationDate:
+                  type: string
+                  format: date-time
+            ArchiveResponse:
+              type: object
+              required:
+                - archives
+              properties:
+                archiveId:
+                  type: string
+                contentType:
+                  type: string
+                checksum:
+                  type: string
+                contentLength:
+                  type: integer
+                download:
+                  $ref: '#/components/schemas/ArchiveDownloadData'
+            ArchiveDownloadData:
+              type: object
+              properties:
+                url: 
+                  type: string
+            MockResponse:
+              title: Identificativi della richiesta di notifica
+              description: >-
+                Contiene le informazioni per identificare una richiesta di invio
+                notifica che non è ancora stata accettata da Piattaforma notifiche.
+              type: object
+              required:
+                - notificationRequestId
+                - paProtocolNumber
+              properties:
+                notificationRequestId:
+                  type: string
+                  description: >-
+                    identificativo univoco di una richiesta di invio notifica, non è lo
+                    IUN
+                  maxLength: 36
+                  pattern: ^[A-Za-z0-9+/=]{36}$
+          responses: {}
+          securitySchemes:
+            api_key_openapi:
+              type: apiKey
+              name: x-api-key
+              in: header
+            pn-auth-fleet_ApiKeyAuthorizerV2_openapi:
+              type: apiKey
+              name: x-api-key
+              in: header
+              x-amazon-apigateway-authtype: custom
+              x-amazon-apigateway-authorizer:
+                authorizerUri: >-
+                  arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:pn-ApiKeyAuthorizerV2Lambda/invocations
+                authorizerResultTtlInSeconds: 60
+                identitySource: method.request.header.x-api-key
+                type: request
+        tags:
+          - null
+        x-amazon-apigateway-gateway-responses:
+          DEFAULT_5XX:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+          DEFAULT_4XX:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+          BAD_REQUEST_PARAMETERS:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+            responseTemplates:
+              application/json: >-
+                {"status": 400, "title": "VALIDATION ERROR", "traceId":
+                "$context.xrayTraceId", "errors": [ { "code": "PN_INVALID_PARAMETERS",
+                "detail": "Validation errors: $context.error.validationErrorString" } ]}
+          BAD_REQUEST_BODY:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: '''*'''
+            responseTemplates:
+              application/json: >-
+                {"status": 400, "title": "VALIDATION ERROR", "traceId":
+                "$context.xrayTraceId", "errors": [ { "code": "PN_INVALID_BODY",
+                "detail": "Validation errors: $context.error.validationErrorString" } ]}
+        x-amazon-apigateway-request-validators:
+          basic:
+            validateRequestBody: true
+            validateRequestParameters: true
+          params-only:
+            validateRequestBody: false
+            validateRequestParameters: true
+        x-amazon-apigateway-request-validator: basic
+
+  ArchiveDownloaderRestApiPnPlaceholderEpochSeconds:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ArchiveDownloaderRestApi
+
+  # Stage
+  ArchiveDownloaderRestApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref ArchiveDownloaderRestApi
+      StageName: unique
+      TracingEnabled: true
+      DeploymentId: !Ref ArchiveDownloaderRestApiPnPlaceholderEpochSeconds
+      AccessLogSetting:
+        DestinationArn: !GetAtt "ArchivesDownloadFunctionLogGroup.Arn"
+        Format: '{"requestTime":"$context.requestTime","requestId":"$context.requestId","httpMethod":"$context.httpMethod","path":"$context.path","resourcePath":"$context.resourcePath","status":$context.status,"responseLatency":$context.responseLatency,"xrayTraceId":"$context.xrayTraceId","errorMessage":"$context.error.message","validationError":"$context.error.validationErrorString","integrationRequestId":"$context.integration.requestId","functionResponseStatus":"$context.integration.status","integrationLatency":"$context.integration.latency","integrationServiceStatus":"$context.integration.integrationStatus","authorizeStatus":"$context.authorize.status","authorizerStatus":"$context.authorizer.status","authorizerLatency":"$context.authorizer.latency","authorizerRequestId":"$context.authorizer.requestId","ip":"$context.identity.sourceIp","userAgent":"$context.identity.userAgent","principalId":"$context.authorizer.principalId","cxId": "$context.authorizer.cx_id","cxType": "$context.authorizer.cx_type","sourceChannelDetails":"$context.authorizer.sourceChannelDetails","uid":"$context.authorizer.uid"}'
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          MetricsEnabled: 'true'
+          DataTraceEnabled: 'false'
+          LoggingLevel: 'INFO'
+      Variables: 
+        ServiceApiPath: 'archives'
+        ProjectName: pn
+        MicroServiceUniqueName: archives-handler
+        IntendedUsage: B2B
+        DnsName:
+          Fn::If:
+            - IsProd
+            - api.notifichedigitali.it
+            - !Sub 'api.${Env}.notifichedigitali.it'
+  
+
+  # Expose API to custom domain
+  APIMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      BasePath: 'archives'
+      DomainName: 
+        Fn::If:
+          - IsProd
+          - api.notifichedigitali.it
+          - !Sub 'api.${Env}.notifichedigitali.it'
+      RestApiId: !Ref ArchiveDownloaderRestApi
+      Stage: !Ref ArchiveDownloaderRestApiStage
+
+
+  APIGatewayApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "pn-archives-handler-B2B-ApiGwAlarm"
+      AlarmDescription: "CloudWatch alarm for when API Gateway has 4xx or 5xx error."
+      AlarmActions: 
+        - !Ref AlarmSNSTopicArn
+      InsufficientDataActions:
+        - !Ref AlarmSNSTopicArn
+      OKActions:
+        - !Ref AlarmSNSTopicArn
+      DatapointsToAlarm: !Ref ApiErrorDataPointsToAlarm
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: !Ref ApiErrorEvaluationPeriods
+      Threshold: !Ref ApiErrorThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handle-public-api-B2B-openapi'
+              MetricName: 4XXError
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handle-public-api-B2B-openapi'
+              MetricName: 5XXError
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handler-public-api-B2B-openapi'
+              MetricName: Count
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False          
+        - Id: e1
+          Expression: "FILL(m1, 0)/FILL(m3, 1)"
+          Label: "pn-archives-handler-B2B-4XXError-weight-adjust"
+          ReturnData: False
+        - Id: e2
+          Expression:
+            Fn::If:
+              - IsAlarmOn4xxEnabled
+              - IF(m2>=1 OR e1>=0.1, 1, 0)
+              - IF(m2>=1, 1, 0)
+          Label: "pn-archives-handler-B2B-APIGatewayErrorMetric"
+
 
 Parameters:
   PaId:
@@ -205,6 +723,26 @@ Parameters:
       - 'uat'
       - 'prod'
       - 'hotfix'
+  ApiErrorDataPointsToAlarm:
+    Type: Number
+    Default: 1
+
+  ApiErrorEvaluationPeriods:
+    Type: Number
+    Default: 5
+
+  ApiErrorThreshold:
+    Type: Number
+    Default: 1
+  
+  AlarmSNSTopicArn:
+    Type: String
+    Description: arn del topic SNS a cui inviare allarmi
+  
+  AlarmOn4xxEnabled:
+    Type: String
+    Default: 'false'
+
 
 Outputs:
   CodeBuildProjectName:
@@ -216,3 +754,6 @@ Outputs:
   Con020OutputBucket:
     Value: !Ref Con020OutputBucket
     Description: "Nome bucket di output dove esportare lo zip"
+  GeneratePresignedUrlLambdaName:
+    Value: !Ref ArchivesDownloadFunction
+    Description: "Nome lambda che restituisce un presigned URL"

@@ -27,6 +27,13 @@ SEC_GROUP_IDS=$( aws ${aws_command_base_args} \
       --output json \
   | jq -r ".Stacks[0].Outputs | .[] | select( .OutputKey==\"AlbSecurityGroup\") | .OutputValue" )
 
+ALARM_SNS_TOPIC_ARN=$( aws ${aws_command_base_args} \
+    cloudformation describe-stacks \
+      --profile "$PROFILE" \
+      --stack-name "$PN_INFRA" \
+      --output json \
+  | jq -r ".Stacks[0].Outputs | .[] | select( .OutputKey==\"AlarmSNSTopicArn\") | .OutputValue" )
+
 NOTIFICATIONS_TABLE_ARN=$( aws ${aws_command_base_args} \
     cloudformation describe-stacks \
       --profile "$PROFILE" \
@@ -41,5 +48,6 @@ aws cloudformation deploy --profile "$PROFILE" --stack-name create-zip-con020-co
     Subnets="$SUBNETS" \
     SecurityGroupIds="$SEC_GROUP_IDS" \
     NotificationsDynamoTableArn="$NOTIFICATIONS_TABLE_ARN" \
+    AlarmSNSTopicArn="$ALARM_SNS_TOPIC_ARN" \
     Env="$ENV" \
     --capabilities CAPABILITY_NAMED_IAM
