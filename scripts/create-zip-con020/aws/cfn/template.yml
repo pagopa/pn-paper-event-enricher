@@ -7,6 +7,7 @@ Transform:
 
 Conditions:
      IsProd: !Equals [ !Ref Env, "prod"]
+     IsAlarmOn4xxEnabled: !Equals [ !Ref AlarmOn4xxEnabled, "true"]
 
 Resources:
 
@@ -283,7 +284,7 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
-      Timeout: 30
+      Timeout: 28
       Role: !Sub '${ArchivesDownloadFunctionRole.Arn}'
 
   ArchivesDownloadFunctionRole:
@@ -617,6 +618,69 @@ Resources:
       Stage: !Ref ArchiveDownloaderRestApiStage
 
 
+  APIGatewayApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "pn-archives-handler-B2B-ApiGwAlarm"
+      AlarmDescription: "CloudWatch alarm for when API Gateway has 4xx or 5xx error."
+      AlarmActions: 
+        - !Ref AlarmSNSTopicArn
+      InsufficientDataActions:
+        - !Ref AlarmSNSTopicArn
+      OKActions:
+        - !Ref AlarmSNSTopicArn
+      DatapointsToAlarm: !Ref ApiErrorDataPointsToAlarm
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: !Ref ApiErrorEvaluationPeriods
+      Threshold: !Ref ApiErrorThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handle-public-api-B2B-openapi'
+              MetricName: 4XXError
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handle-public-api-B2B-openapi'
+              MetricName: 5XXError
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: ApiName
+                  Value: 'pn-archives-handler-public-api-B2B-openapi'
+              MetricName: Count
+              Namespace: AWS/ApiGateway
+            Period: 60
+            Stat: Sum
+          ReturnData: False          
+        - Id: e1
+          Expression: "FILL(m1, 0)/FILL(m3, 1)"
+          Label: "pn-archives-handler-B2B-4XXError-weight-adjust"
+          ReturnData: False
+        - Id: e2
+          Expression:
+            Fn::If:
+              - IsAlarmOn4xxEnabled
+              - IF(m2>=1 OR e1>=0.1, 1, 0)
+              - IF(m2>=1, 1, 0)
+          Label: "pn-archives-handler-B2B-APIGatewayErrorMetric"
+
+
 Parameters:
   PaId:
     Type: String
@@ -659,6 +723,26 @@ Parameters:
       - 'uat'
       - 'prod'
       - 'hotfix'
+  ApiErrorDataPointsToAlarm:
+    Type: Number
+    Default: 1
+
+  ApiErrorEvaluationPeriods:
+    Type: Number
+    Default: 5
+
+  ApiErrorThreshold:
+    Type: Number
+    Default: 1
+  
+  AlarmSNSTopicArn:
+    Type: String
+    Description: arn del topic SNS a cui inviare allarmi
+  
+  AlarmOn4xxEnabled:
+    Type: String
+    Default: 'false'
+
 
 Outputs:
   CodeBuildProjectName:
