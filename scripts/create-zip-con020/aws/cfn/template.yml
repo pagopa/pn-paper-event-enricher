@@ -245,7 +245,7 @@ Resources:
               else {
                 const listCommand = new ListObjectsCommand({
                   Bucket: bucketName,
-                  Prefix: 'CON020EXPORT_'
+                  Prefix: 'CON020EXPORT-'
                 });
                 console.log('List Command: \n' + JSON.stringify(listCommand, null, 2));
                 const listResponse = await s3Client.send( listCommand );
