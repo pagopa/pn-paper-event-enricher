@@ -245,7 +245,7 @@ Resources:
                 result = {
                   statusCode: 200,
                   body: JSON.stringify({
-                    archiveId: fileName,
+                    archiveId: fileName.replace(/\.bin$/, ''),
                     contentType: 'application/zip',
                     contentLength: headResponse.ContentLength,
                     checksum: headResponse.ChecksumSHA256,
