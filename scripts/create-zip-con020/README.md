@@ -20,7 +20,7 @@ Lo script JS effettua le seguenti operazioni:
     - Viene chiamata la getFile di SafeStorage per recuperare una presigned URL ed effettuare il download del PDF con fileKey che si trova nel campo `printedPdf` della riga del DUMP.
     - Viene memorizzato il PDF su una cartella temporanea.
 3. Quando tutte le righe del DUMP sono state elaborate, viene creato uno ZIP contenente tutti i PDF della cartella temporanea e un CSV che fa da indice.
-4. Viene effettuato il download dello ZIP sul bucket di output.
+4. Viene effettuato l'upload dello ZIP sul bucket di output.
 5. Viene cancellata la cartella temporanea.
 
 ## Formati e convenzioni
