@@ -10,8 +10,8 @@
 Lo script JS effettua le seguenti operazioni:
 1. Prende in input i seguenti parametri:
     - `PA_ID`: la paId su cui filtrare le sendRequestId del dump, in modo tale che vengano elaborate solo quelle che passano il filtro.
-    - `BUCKET_SOURCE`: il bucket di input che ospita i file dump della coda pn-paper-event-enrichment-output, che avrà il nome `create-zip-con020-codebuild-dev-con020-input-bucket-{ENV}`.
-    - `BUCKET_DESTINATION`: il bucket di output dove viene salvato lo ZIP, che avrà il nome `create-zip-con020-codebuild-dev-con020-output-bucket-{ENV}`
+    - `BUCKET_SOURCE`: il bucket di input che ospita i file dump della coda pn-paper-event-enrichment-output, che avrà il nome `create-zip-con020-codebuild-{ENV}-con020-input-bucket-{ENV}`.
+    - `BUCKET_DESTINATION`: il bucket di output dove viene salvato lo ZIP, che avrà il nome `create-zip-con020-codebuild-{ENV}-con020-output-bucket-{ENV}`
     - `S3_KEY_SOURCE`: il nome del file DUMP in input.
     - `SAFESTORAGE_URL`: l'URL di Safe Storage per chiedere una presigned url, utile al download dei PDF.
 2. Legge il DUMP della coda `pn-paper-event-enrichment-output`, dal bucket dato in input, e per ogni riga:
@@ -26,8 +26,8 @@ Lo script JS effettua le seguenti operazioni:
 ## Formati e convenzioni
 - Il file DUMP contiene dei JSON inline degli eventi della coda pn-paper-event-enrichment-output. Un esempio di formato del DUMP di input può essere trovato qui: [dynamodb-stream-example.txt](src/example/dynamodb-stream-example.txt).
 - Il nome dello ZIP di output ha questa convenzione `dump_pn-paper-event-enrichment-output_{paId}_{timepstamp_now_iso}.zip`.
-- Il nome del bucket di input ha questa convenzione `create-zip-con020-codebuild-dev-con020-input-bucket-{ENV}`.
-- Il nome del bucket di output ha questa convenzione `create-zip-con020-codebuild-dev-con020-output-bucket-{ENV}`.
+- Il nome del bucket di input ha questa convenzione `create-zip-con020-codebuild-{ENV}-con020-input-bucket-{ENV}`.
+- Il nome del bucket di output ha questa convenzione `create-zip-con020-codebuild-{ENV}-con020-output-bucket-{ENV}`.
 - Il CSV indice all'interno dello ZIP ha nome `elenco_stampe.csv`, ha il delimitatore `;` ed ha questo formato:
 ```csv
 iun;recIndex;sendRequestId;generationTime;eventTime;registeredLetterCode;printedPdf
