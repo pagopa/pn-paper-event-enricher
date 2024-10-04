@@ -1,6 +1,7 @@
 #! /bin/bash
 
 ENV=$1
+ALLOWED_CX_ID=$2
 PROFILE=sso_pn-core-$ENV
 PN_INFRA=pn-infra-$ENV
 PN_DELIVERY_STORAGE=pn-delivery-storage-$ENV
@@ -49,5 +50,6 @@ aws cloudformation deploy --profile "$PROFILE" --stack-name create-zip-con020-co
     SecurityGroupIds="$SEC_GROUP_IDS" \
     NotificationsDynamoTableArn="$NOTIFICATIONS_TABLE_ARN" \
     AlarmSNSTopicArn="$ALARM_SNS_TOPIC_ARN" \
+    AllowedCxId="$ALLOWED_CX_ID" \
     Env="$ENV" \
     --capabilities CAPABILITY_NAMED_IAM

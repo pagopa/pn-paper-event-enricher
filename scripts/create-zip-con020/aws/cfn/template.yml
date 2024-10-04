@@ -185,6 +185,8 @@ Resources:
           
           const s3Client = new S3Client({});
 
+          const ALLOWED_CX_ID_REGEXP = new RegExp( process.env.ALLOWED_CX_ID );
+
           async function getDescription( s3Client, fileName ) {
             const bucketName = process.env.OUTPUT_BUCKET_NAME;
 
@@ -204,11 +206,22 @@ Resources:
           exports.handler = async (event) => {
             console.log('Lambda Input Event: \n' + JSON.stringify(event, null, 2));
             const bucketName = process.env.OUTPUT_BUCKET_NAME;
+
+            const cxId = event?.requestContext?.authorizer?.cx_id
+            if( !cxId || !cxId.match( ALLOWED_CX_ID_REGEXP ) ) {
+              return {
+                statusCode: 403,
+                body: JSON.stringify({
+                  message: 'CxId ' + cxId + ' not authorized to use pn-archives-handler',
+                  error: 'Unauthorized',
+                }),
+              };
+            }
             
             try {
               let result;
               if( event.resource == '/con020/{archiveId}') {
-                const fileName = event.path.replace(/.*\//,'') + '.zip';
+                const fileName = event.path.replace(/.*\//,'') + '.bin';
                 console.log('Generating presigned url for file=' + fileName);
 
                 const headCommand = new HeadObjectCommand({
@@ -252,13 +265,13 @@ Resources:
                 console.log('List Response: \n' + JSON.stringify(listResponse, null, 2));
                 
                 const resultBodyArray = ( listResponse.Contents || [] ).map( el => ({
-                  archiveId: el.Key.replace(/\.zip$/, ''),
+                  archiveId: el.Key.replace(/\.bin$/, ''),
                   description: null,
                   creationDate: el.LastModified
                 }))
 
                 for( el of resultBodyArray ) {
-                  el.description = await getDescription( s3Client, el.archiveId + '.zip' )
+                  el.description = await getDescription( s3Client, el.archiveId + '.bin' )
                 }
 
                 const resultBody = {
@@ -284,6 +297,7 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET_NAME: !Ref Con020OutputBucket
+          ALLOWED_CX_ID: !Ref AllowedCxId
       Timeout: 28
       Role: !Sub '${ArchivesDownloadFunctionRole.Arn}'
 
@@ -743,6 +757,8 @@ Parameters:
     Type: String
     Default: 'false'
 
+  AllowedCxId:
+    Type: String
 
 Outputs:
   CodeBuildProjectName:
