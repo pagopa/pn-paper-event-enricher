@@ -37,13 +37,20 @@ iun;recIndex;sendRequestId;generationTime;eventTime;registeredLetterCode;printed
 Per creare lo stack CloudFormation (operazione fatta in locale):
 1. Loggarsi tramite AWS CLI sull'ambiente su cui creare lo stack, ad esempio `aws sso login --profile sso_pn-core-dev`.
 2. Posizionarsi col terminale al path `scripts/create-zip-con020/aws/`
-3. Lanciare lo script create-stack.sh eseguendo il comando: `./create-stack.sh {env}` ad esempio `./create-stack.sh dev`.
+3. Lanciare lo script create-stack.sh eseguendo il comando: `./create-stack.sh {env} {paId}` ad esempio 
+   `./create-stack.sh dev abcdef01-1a2b-1a2b-1a2b-abcdef123456`. Se come `paId` si utilizza `.*` allora tutti i mittenti
+   potranno effettuare le invocazioni di download degli archivi; utilizzare solo in ambienti _dev_ e _test_ perché
+   il namespace degli archivi è condiviso.
 
 Il CloudFormation crea le seguenti risorse:
 1. **Con020InputBucket**: il bucket di input.
 2. **Con020OutputBucket**: il bucket di output.
 3. **CodeBuildRole**: ruolo necessario al CodeBuild per effettuare diverse operazioni sulle risorse AWS.
 4. **Con020CodeBuildProject**: il CodeBuild che esegue lo script JS.
+5. **ArchivesDownloadFunction**: lambda per il download degli archivi.
+
+**N.B.**: Dopo il primo deploy dello stack sarà necessario eseguire la pipeline CodePipeline
+          `pn-infrastructure-post-deploy-update-pipeline` al fine di agganciare gli usage plan alla nuova RestAPI.
 
 ## Esecuzione dello script JS tramite CodeBuild
 Per eseguire il CodeBuild (operazione fatta in locale):
@@ -70,3 +77,46 @@ BUCKET_DESTINATION=$( aws ${aws_command_base_args} \
 ```
 
 Se si volessero utilizzare altri bucket, modificare lo script run-codebuild.sh.
+
+
+## Gestione archivi
+In questa sezione verrà descritto come caricare (per ora manualmente) degli archivi di export degli eventi CON020
+e di come effettuarne il download in modo automatcio.
+
+### Upload
+Caricare il file sul bucket **Con020OutputBucket** avendo cura di dagli nome `CON020EXPORT-<32HexDigit>.bin` ove
+`<32HexDigit>` va sostituito con 32 cifre esadecimali randomiche. Una volta caricato il file si pò aggiungere 
+all'oggetto S3 un tag `description` che verrà mostrato nella risposta REST che elenca gli archivi.
+
+### Download
+Sono previste due operazioni REST, la prima elenca gli archivi disponibili, la seconda permette il download di un 
+archivio.
+
+1.  **list**: `curl -X GET -H "x-api-key: <api-key-used-for-b2b-api>" https://<dns-domanin>/archives/con020/` che
+    fornisce una risposta come, ad esempio:
+    ```
+      {
+        "archives": [
+          {
+            "archiveId": "CON020EXPORT-1234567890abcdef1234567890abcdef",
+            "description": "Una descrizione del contenuto",
+            "creationDate": "2024-10-02T09:35:02.000Z"
+          }
+        ]
+      }
+    ```
+
+2.  **download** `curl -X GET -H "x-api-key: <api-key-used-for-b2b-api>" https://<dns-domanin>/archives/con020/<archiveId>` 
+    che fornisce una risposta come, ad esempio:
+    ```
+      {
+        "archiveId": "CON020EXPORT-1234567890abcdef1234567890abcdef",
+        "contentType": "application/zip",
+        "contentLength": 987653,
+        "download": {
+          "url": "https://create-zip-co......"
+        }
+      }
+    ```
+    Per effettuare l'effettivo download dell'archivio basta effettuare una richesta HTTP GET all'url indicato dal campo 
+    `download.url` della risposta.
