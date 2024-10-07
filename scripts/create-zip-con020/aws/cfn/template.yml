@@ -238,8 +238,8 @@ Resources:
                   Key: fileName,
                 });
                 console.log('GetObjectCommand Command: \n' + JSON.stringify(command, null, 2));
-                // Generare la presigned URL valida per 7 giorni (604800 secondi)
-                const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
+                // Generare la presigned URL valida per 1 ora (3600 secondi)
+                const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
                 console.log('Generated presignedUrl: \n' + presignedUrl);
 
                 result = {
