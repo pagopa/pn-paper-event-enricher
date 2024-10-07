@@ -69,7 +69,7 @@ Parameters:
 
   EcsLogGroup:
     Type: String
-    Default: ''
+    Description: 'Ecs log group name'
 
   PaperEventEnrichmentTableName:
     Type: String
@@ -112,9 +112,87 @@ Parameters:
     Description: 'Threshold for autoscaling'
     Default: 1000
 
-  KinesisStreamArn:
+  PaperEventEnrichmentTableKinesisStreamArn:
     Type: String
     Description: 'Arn of the kinesis stream where paper event enrichments are stored'
+
+  # Instance parameters
+  # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
+  # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
+  # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
+  # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
+  # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
+  CpuValue:
+    Type: Number
+    Default: 1024
+    Description: Fargate virtual CPU quantity 1024 equals one vCPU
+
+  # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
+  # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
+  # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
+  # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
+  # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+  MemoryAmount:
+    Type: String
+    Default: 2GB
+    Description: memory amount reserved to the task pod.
+    AllowedValues: [ 2GB, 4GB, 6GB, 8GB ]
+
+  # Heath Check parameters
+  HealthCheckInterval:
+    Description: Seconds between two health check
+    Type: Number
+    Default: 60
+
+  HealthCheckTimeout:
+    Description: health check timeout seconds
+    Type: Number
+    Default: 5
+
+  HealthyThresholdCount:
+    Description: |
+      The number of consecutive health checks successes required before considering 
+      an unhealthy target healthy.
+    Type: Number
+    Default: 5
+
+  UnhealthyThresholdCount:
+    Description: |
+      The number of consecutive health check failures required before considering a target unhealthy.
+    Type: Number
+    Default: 2
+
+  MinTasksNumber:
+    Default: 1
+    Type: Number
+    Description: minimum autoscaling number of tasks
+
+  MaxTasksNumber:
+    Default: 6
+    Type: Number
+    Description: maximum autoscaling number of tasks
+
+  # EFS parameters
+  FargateEFSFileSystemID:
+    Type: String
+    Description: "EFS Filesystem"
+
+  MountEfs:
+    Type: String
+    Default: false
+    AllowedValues:
+      - "true"
+      - "false"
+
+  # Logging parameters
+  WireTapLogActivation:
+    Type: String
+    Default: false
+    Description: Activation of wire logs
+    AllowedValues:
+      - true
+      - false
+
 
 Resources:
 
@@ -124,9 +202,18 @@ Resources:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/ecs-service.yaml"
       Parameters:
         MicroServiceUniqueName: !Sub '${ProjectName}-paper-event-enricher'
-        CpuValue: 512
-        MemoryAmount: 2GB
+        CpuValue: !Ref CpuValue
+        MemoryAmount: !Ref MemoryAmount
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+        HealthCheckTimeout: !Ref HealthCheckTimeout
+        HealthCheckInterval: !Ref HealthCheckInterval
+        HealthyThresholdCount: !Ref HealthyThresholdCount
+        UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
+        MinTasksNumber: !Ref MinTasksNumber
+        MaxTasksNumber: !Ref MaxTasksNumber
+        EfsFilesystem: !Ref FargateEFSFileSystemID
+        MountEfs: !Ref MountEfs
+        WireTapLogActivation: !Ref WireTapLogActivation
         ContainerImageURI: !Sub '${ContainerImageUri}'
         ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
         ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
@@ -136,7 +223,7 @@ Resources:
         ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
         ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
         ContainerEnvEntry8: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
-        MappedPaths: '/*'
+        MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
         VpcId: !Ref VpcId
@@ -206,7 +293,7 @@ Resources:
     Properties:
       Name: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
       RoleArn: !GetAtt "PipesEnqueueRole.Arn"
-      Source: !Ref KinesisStreamArn
+      Source: !Ref PaperEventEnrichmentTableKinesisStreamArn
       SourceParameters:
         KinesisStreamParameters:
           BatchSize: 1
@@ -259,7 +346,7 @@ Resources:
                   - 'kinesis:ListShards'
                 Effect: Allow
                 Resource:
-                  - !Ref KinesisStreamArn
+                  - !Ref PaperEventEnrichmentTableKinesisStreamArn
               - Sid: targetPermissions
                 Action:
                   - sqs:ChangeMessageVisibility
@@ -278,7 +365,7 @@ Resources:
     Properties:
       Name: !Sub "${ProjectName}-enriched-paper-event-to-output-queue"
       RoleArn: !GetAtt "PipesEnqueueRole.Arn"
-      Source: !Ref KinesisStreamArn
+      Source: !Ref PaperEventEnrichmentTableKinesisStreamArn
       SourceParameters:
         KinesisStreamParameters:
           BatchSize: 1
@@ -390,8 +477,6 @@ Resources:
           Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
       AlarmActions:
         - !Sub '${AlarmSNSTopicArn}'
-      InsufficientDataActions:
-        - !Sub '${AlarmSNSTopicArn}'
       OKActions:
         - !Sub '${AlarmSNSTopicArn}'
 
@@ -469,8 +554,6 @@ Resources:
           Expression: !Sub IF( e1 > 0.2 AND m5 > 20, 1, 0)
           Label: !Sub "OnCall-${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
       AlarmActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      InsufficientDataActions:
         - !Sub '${AlarmSNSTopicArn}'
       OKActions:
         - !Sub '${AlarmSNSTopicArn}'

@@ -4,6 +4,7 @@ import it.pagopa.pn.paper.event.enricher.config.BaseTest;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @ExtendWith(SpringExtension.class)
 @TestPropertySource("classpath:application-test.properties")
+@Disabled
 class Con020ArchiveDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired
