@@ -42,10 +42,6 @@ Resources:
           AttributeType: "S"
         - AttributeName: "sortKey"
           AttributeType: "S"
-        - AttributeName: "entityName"
-          AttributeType: "S"
-        - AttributeName: "archiveStatus"
-          AttributeType: "S"
       KeySchema:
         - AttributeName: "hashKey"
           KeyType: "HASH"
