@@ -3,6 +3,8 @@
     "PaperEventEnrichmentCxId": "pn-paper-event-enricher",
     "SafeStorageUploadMaxConcurrentRequest": "10",
     "WireTapLogActivation": "false",
-    "MountEfs": "false"
+    "MountEfs": "false",
+    "SafeStorageConnectionReadMillis": "20000",
+    "SafeStorageConnectionTimeoutMillis": "20000"
   }
 }
