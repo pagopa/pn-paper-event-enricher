@@ -91,7 +91,7 @@ Parameters:
     Type: String
     Description: Name of the queue where paper event enrichments are stored
 
-  PaperEventEnrichmentInputQueueARN:
+  PnPaperEventEnricherInputQueueARN:
     Type: String
     Description: Arn of the queue where paper event enrichments are stored
 
@@ -265,7 +265,7 @@ Resources:
               - sqs:ReceiveMessage
             Resource:
               - !Ref PaperArchivesQueueARN
-              - !Ref PaperEventEnrichmentInputQueueARN
+              - !Ref PnPaperEventEnricherInputQueueARN
 
   # CloudWatch dashboard
   PaperEventEnricherMicroserviceCloudWatchDashboard:
