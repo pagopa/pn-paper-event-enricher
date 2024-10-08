@@ -26,7 +26,7 @@ public class SafeStorageService {
         FileCreationRequest fileCreationRequestDto = buildFileCreationRequest();
         return pnSafeStorageClient.createFile(fileCreationRequestDto, sha256)
                 .flatMap(fileCreationResponseDto -> uploadDownloadClient.uploadContent(content, fileCreationResponseDto, sha256)
-                        .doOnNext(response -> log.info("file {} uploaded", fileCreationResponseDto.getKey()))
+                        .doOnNext(response -> log.info("file [{}] uploaded", fileCreationResponseDto.getKey()))
                         .thenReturn(fileCreationResponseDto.getKey()))
                 .onErrorResume(e -> {
                     log.error("failed to create file", e);
