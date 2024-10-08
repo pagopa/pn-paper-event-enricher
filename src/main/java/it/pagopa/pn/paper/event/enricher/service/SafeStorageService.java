@@ -22,7 +22,7 @@ public class SafeStorageService {
 
     private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
 
-    public Mono<String> callSelfStorageCreateFileAndUpload(byte[] content, String sha256) {
+    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256) {
         FileCreationRequest fileCreationRequestDto = buildFileCreationRequest();
         return pnSafeStorageClient.createFile(fileCreationRequestDto, sha256)
                 .flatMap(fileCreationResponseDto -> uploadDownloadClient.uploadContent(content, fileCreationResponseDto, sha256)
