@@ -22,11 +22,11 @@ public class SafeStorageService {
 
     private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
 
-    public Mono<String> callSelfStorageCreateFileAndUpload(byte[] content, String sha256) {
+    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256) {
         FileCreationRequest fileCreationRequestDto = buildFileCreationRequest();
         return pnSafeStorageClient.createFile(fileCreationRequestDto, sha256)
                 .flatMap(fileCreationResponseDto -> uploadDownloadClient.uploadContent(content, fileCreationResponseDto, sha256)
-                        .doOnNext(response -> log.info("file {} uploaded", fileCreationResponseDto.getKey()))
+                        .doOnNext(response -> log.info("file [{}] uploaded", fileCreationResponseDto.getKey()))
                         .thenReturn(fileCreationResponseDto.getKey()))
                 .onErrorResume(e -> {
                     log.error("failed to create file", e);

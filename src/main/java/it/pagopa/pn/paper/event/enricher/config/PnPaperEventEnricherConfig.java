@@ -25,7 +25,6 @@ public class PnPaperEventEnricherConfig {
 
     @Data
     public static class Sqs {
-        private String paperEventEnrichmentInputQueue;
         private String paperArchivesQueueName;
         private String paperEventEnrichmentInputQueueName;
     }

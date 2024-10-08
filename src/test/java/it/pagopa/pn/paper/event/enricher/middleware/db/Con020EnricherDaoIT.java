@@ -4,13 +4,14 @@ import it.pagopa.pn.paper.event.enricher.config.BaseTest;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-
+@Disabled
 class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired

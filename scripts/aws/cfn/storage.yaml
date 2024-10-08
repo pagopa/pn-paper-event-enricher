@@ -5,34 +5,30 @@ Parameters:
   ProjectName:
     Type: String
     Description: Nome dell'ambiente destinazione
-    Default: pn # To be removed
 
-  # Unused but required by CD pipeline
   MicroserviceNumber:
     Type: Number
     Description: An unique number that identify the microservice inside the ECS cluster.
-    Default: 41 # To be removed
 
-  # Unused but required by CD pipeline
   TemplateBucketBaseUrl:
     Type: String
     Description: URL da cui caricare i frammenti di template di infrastruttura
-    Default: ''  # To be removed
-  
+
   Version:
     Type: String
     Description: 'keep track of used projects commitIds'
-    Default: '0.0.0.0.0.0.1' # To be removed
 
   AlarmSNSTopicArn:
     Type: String
     Description: 'Topic alarm ARN'
-    Default: 'arn:aws:sns:eu-central-1:830192246553:FakeAlarmTopic' # To be removed
 
   AlarmSNSTopicName:
     Type: String
     Description: 'Topic alarm name'
-    Default: 'FakeAlarmTopic'  # To be removed
+
+  LogsKinesisSourceStreamArn:
+    Type: String
+    Description: 'Where to send Logs'
 
 Resources:
   PaperEventEnrichmentTable:
@@ -45,6 +41,10 @@ Resources:
         - AttributeName: "hashKey"
           AttributeType: "S"
         - AttributeName: "sortKey"
+          AttributeType: "S"
+        - AttributeName: "entityName"
+          AttributeType: "S"
+        - AttributeName: "archiveStatus"
           AttributeType: "S"
       KeySchema:
         - AttributeName: "hashKey"
@@ -67,8 +67,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
-      TemplateURL: "fragments/kinesis-data-stream.yaml"
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
       Parameters:
         StreamName: !Sub "${ProjectName}-paper-event-enrichment-cdc"
         # PROVISIONED MODE: follow shard configuration
@@ -80,147 +79,17 @@ Resources:
         StandardAlarmThresholdsMs: 172800000 # 2 days
         OnCallAlarmThresholdsMs: 432000000  # 5 days
 
-  PaperEventCdcToArchivesQueuePipe:
-    Type: 'AWS::Pipes::Pipe'
-    Properties:
-      Name: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
-      Source: !GetAtt "PaperEventEnrichmentCdc.Outputs.KinesisStreamArn"
-      SourceParameters:
-        KinesisStreamParameters:
-          BatchSize: 1
-          StartingPosition: LATEST
-        FilterCriteria:
-          Filters:
-            - Pattern: |
-                {
-                  "data": {
-                    "eventName": ["INSERT"],
-                    "dynamodb": {
-                      "NewImage": {
-                        "entityName": {"S": [ "CON020Archive"] }
-                      }
-                    }
-                  }
-                }
-      TargetParameters:
-        InputTemplate: |
-          {
-            "archiveFileKey": <$.data.dynamodb.NewImage.archiveFileKey.S>,
-            "archiveStatus": <$.data.dynamodb.NewImage.archiveStatus.S>
-          }
-      Target: !GetAtt 'PaperArchivesQueue.Outputs.QueueARN'
-
-  PipesEnqueueRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service: pipes.amazonaws.com
-            Condition:
-              StringLike:
-                'aws:SourceArn': !Sub 'arn:${AWS::Partition}:pipes:${AWS::Region}:${AWS::AccountId}:pipe/${ProjectName}-enriched-paper-event-to-*'
-                'aws:SourceAccount': !Ref 'AWS::AccountId'
-        Version: "2012-10-17"
-      Policies:
-        - PolicyName: putEventIntoQueues
-          PolicyDocument:
-            Statement:
-              - Sid: sourcePermissions
-                Action:
-                  - 'kinesis:DescribeStream'
-                  - 'kinesis:GetRecords'
-                  - 'kinesis:GetShardIterator'
-                  - 'kinesis:ListStreams'
-                  - 'kinesis:ListShards'
-                Effect: Allow
-                Resource:
-                  - !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
-              - Sid: targetPermissions
-                Action:
-                  - sqs:ChangeMessageVisibility
-                  - sqs:ChangeMessageVisibilityBatch
-                  - sqs:GetQueueAttributes
-                  - sqs:GetQueueUrl
-                  - sqs:SendMessage
-                  - sqs:SendMessageBatch
-                Effect: Allow
-                Resource:
-                  - !GetAtt PaperArchivesQueue.Outputs.QueueARN
-                  - !GetAtt EnrichedEventsQueue.Outputs.QueueARN
-
   PaperArchivesQueue:
     Type: AWS::CloudFormation::Stack
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
-#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
-      TemplateURL: "fragments/sqs-queue.yaml"
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 18000 # 5 ore
+        VisibilityTimeout: 18000
         MaxReceiveCount: 1
-        DelaySeconds: 1
-        MessageRetentionPeriod: 1209600
-
-  PaperEventCdcToEnrichedEventsQueuePipe:
-    Type: 'AWS::Pipes::Pipe'
-    Properties:
-      Name: !Sub "${ProjectName}-enriched-paper-event-to-output-queue"
-      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
-      Source: !GetAtt "PaperEventEnrichmentCdc.Outputs.KinesisStreamArn"
-      SourceParameters:
-        KinesisStreamParameters:
-          BatchSize: 1
-          StartingPosition: LATEST
-        FilterCriteria:
-          Filters:
-            - Pattern: |
-                {
-                  "data": {
-                    "eventName": [ "MODIFY" ],
-                    "dynamodb": {
-                      "NewImage": {
-                        "entityName": { "S": [ "CON020Enriched"] },
-                        "printedPdf": { "S": [ { "exists": true } ] },
-                        "metadataPresent": { "BOOL": [ true ] }
-                      }
-                    }
-                  }
-                }
-      TargetParameters:
-        InputTemplate: |
-          {
-            "entityName": <$.data.dynamodb.NewImage.entityName.S>,
-            "recordCreationTime": <$.data.dynamodb.NewImage.recordCreationTime.S>,
-            "lastModificationTime": <$.data.dynamodb.NewImage.lastModificationTime.S>,
-            "archiveFileKey": <$.data.dynamodb.NewImage.metadata.M.archiveFileKey.S>,
-            "eventTime": <$.data.dynamodb.NewImage.metadata.M.eventTime.S>,
-            "generationTime": <$.data.dynamodb.NewImage.metadata.M.generationTime.S>,
-            "iun": <$.data.dynamodb.NewImage.metadata.M.iun.S>,
-            "recIndex": <$.data.dynamodb.NewImage.metadata.M.recIndex.N>,
-            "registeredLetterCode": <$.data.dynamodb.NewImage.metadata.M.registeredLetterCode.S>,
-            "sendRequestId": <$.data.dynamodb.NewImage.metadata.M.sendRequestId.S>,
-            "printedPdf": <$.data.dynamodb.NewImage.printedPdf.S>
-          }
-      Target: !GetAtt 'EnrichedEventsQueue.Outputs.QueueARN'
-
-  InputEventsQueue: # Move resource into pn-infra
-    Type: AWS::CloudFormation::Stack
-    UpdateReplacePolicy: Retain
-    DeletionPolicy: Retain
-    Properties:
-      # TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"  # RIPRISTINARE
-      TemplateURL: "fragments/sqs-queue.yaml"
-      Parameters:
-        QueueName: !Sub '${ProjectName}-paper-event-enrichment-input'
-        AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 60
-        MaxReceiveCount: 10
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
 
@@ -229,8 +98,7 @@ Resources:
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
     Properties:
-#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
-      TemplateURL: "fragments/sqs-queue.yaml"
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-event-enrichment-output'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
@@ -239,166 +107,15 @@ Resources:
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
 
-  PipeAlarm:
-    Type: AWS::CloudWatch::Alarm
+  PaperEventEnrichmentLogGroup:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
     Properties:
-      AlarmName: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
-      AlarmDescription: "Alarm on pipe failure"
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      DatapointsToAlarm: 5
-      EvaluationPeriods: 10
-      Threshold: 1
-      TreatMissingData: notBreaching
-      Metrics:
-        - Id: m1
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionThrottled
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m2
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionTimeout
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m3
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m4
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionPartiallyFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m5
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: Invocations
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: e1
-          Expression: ( m1 + m2 + m3 + m4 ) / m5
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
-          ReturnData: False
-        - Id: e2
-          Expression: !Sub IF( e1 > 0.1 AND m5 > 0, 1, 0)
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
-      AlarmActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      InsufficientDataActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      OKActions:
-        - !Sub '${AlarmSNSTopicArn}'
-
-  OnCallPipeAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub "oncall-${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
-      AlarmDescription: "OnCall Alarm on pipe failure"
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      DatapointsToAlarm: 5
-      EvaluationPeriods: 10
-      Threshold: 1
-      TreatMissingData: notBreaching
-      Metrics:
-        - Id: m1
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionThrottled
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m2
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionTimeout
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m3
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m4
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionPartiallyFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m5
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: Invocations
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: e1
-          Expression: ( m1 + m2 + m3 + m4 ) / m5
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
-          ReturnData: False
-        - Id: e2
-          Expression: !Sub IF( e1 > 0.2 AND m5 > 20, 1, 0)
-          Label: !Sub "OnCall-${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
-      AlarmActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      InsufficientDataActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      OKActions:
-        - !Sub '${AlarmSNSTopicArn}'
-
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/log-group.yaml"
+      Parameters:
+        LogGroupName: !Sub '${ProjectName}-paper-event-enricher'
+        LogsKinesisSourceStreamArn: !Ref LogsKinesisSourceStreamArn
 
 Outputs:
   PaperEventEnrichmentTableName:
@@ -414,4 +131,16 @@ Outputs:
 
   PaperArchivesQueueARN:
     Value: !GetAtt PaperArchivesQueue.Outputs.QueueARN
+
+  EnrichedEventsQueueArn:
+    Value: !GetAtt EnrichedEventsQueue.Outputs.QueueARN
+
+  PaperEventEnrichmentTableKinesisStreamArn:
+    Value: !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
+
+  # Log group exports
+  EcsLogGroup:
+    Value: !GetAtt PaperEventEnrichmentLogGroup.Outputs.LogGroupName
+
+
 

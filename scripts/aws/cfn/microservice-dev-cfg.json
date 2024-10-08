@@ -1,6 +1,8 @@
 {
   "Parameters" : {
-    "PaperEventEnrichmentInputQueueName": "pn-paper-event-enrichment-input",
-    "PaperEventEnrichmentCxId": "pn-paper-event-enricher"
+    "PaperEventEnrichmentCxId": "pn-paper-event-enricher",
+    "SafeStorageUploadMaxConcurrentRequest": "10",
+    "WireTapLogActivation": "false",
+    "MountEfs": "false"
   }
 }

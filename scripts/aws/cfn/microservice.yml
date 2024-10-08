@@ -69,7 +69,7 @@ Parameters:
 
   EcsLogGroup:
     Type: String
-    Default: ''
+    Description: 'Ecs log group name'
 
   PaperEventEnrichmentTableName:
     Type: String
@@ -91,85 +91,470 @@ Parameters:
     Type: String
     Description: Name of the queue where paper event enrichments are stored
 
+  PaperEventEnrichmentInputQueueARN:
+    Type: String
+    Description: Arn of the queue where paper event enrichments are stored
+
   PaperEventEnrichmentCxId:
     Type: String
     Description: 'CxId of the paper event enricher'
 
+  SafeStorageUploadMaxConcurrentRequest:
+    Type: Number
+    Description: 'Max concurrent request for safe storage upload'
+
+  EnrichedEventsQueueArn:
+    Type: String
+    Description: 'Arn of the queue where enriched events are stored'
+
+  PaperEventEnrichmentAutoscalingThreshold:
+    Type: Number
+    Description: 'Threshold for autoscaling'
+    Default: 1000
+
+  PaperEventEnrichmentTableKinesisStreamArn:
+    Type: String
+    Description: 'Arn of the kinesis stream where paper event enrichments are stored'
+
+  # Instance parameters
+  # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
+  # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
+  # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
+  # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
+  # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
+  CpuValue:
+    Type: Number
+    Default: 1024
+    Description: Fargate virtual CPU quantity 1024 equals one vCPU
+
+  # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
+  # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
+  # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
+  # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
+  # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+  MemoryAmount:
+    Type: String
+    Default: 2GB
+    Description: memory amount reserved to the task pod.
+    AllowedValues: [ 2GB, 4GB, 6GB, 8GB ]
+
+  # Heath Check parameters
+  HealthCheckInterval:
+    Description: Seconds between two health check
+    Type: Number
+    Default: 60
+
+  HealthCheckTimeout:
+    Description: health check timeout seconds
+    Type: Number
+    Default: 5
+
+  HealthyThresholdCount:
+    Description: |
+      The number of consecutive health checks successes required before considering 
+      an unhealthy target healthy.
+    Type: Number
+    Default: 5
+
+  UnhealthyThresholdCount:
+    Description: |
+      The number of consecutive health check failures required before considering a target unhealthy.
+    Type: Number
+    Default: 2
+
+  MinTasksNumber:
+    Default: 1
+    Type: Number
+    Description: minimum autoscaling number of tasks
+
+  MaxTasksNumber:
+    Default: 6
+    Type: Number
+    Description: maximum autoscaling number of tasks
+
+  # EFS parameters
+  FargateEFSFileSystemID:
+    Type: String
+    Description: "EFS Filesystem"
+
+  MountEfs:
+    Type: String
+    Default: false
+    AllowedValues:
+      - "true"
+      - "false"
+
+  # Logging parameters
+  WireTapLogActivation:
+    Type: String
+    Default: false
+    Description: Activation of wire logs
+    AllowedValues:
+      - true
+      - false
+
+
 Resources:
 
-#  PaperEventEnricherMicroservice:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/ecs-service.yaml"
-#      Parameters:
-#        MicroServiceUniqueName: !Sub '${ProjectName}-template-ms-be'
-#        CpuValue: 512
-#        MemoryAmount: 2GB
-#        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
-#        ContainerImageURI: !Sub '${ContainerImageUri}'
-#        ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
-#        ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
-#        ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
-#        ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-#        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
-#        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
-#        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
-#        MappedPaths: '/*'
-#        ECSClusterName: !Ref ECSClusterName
-#        Subnets: !Ref SubnetsIds
-#        VpcId: !Ref VpcId
-#        EcsDefaultSecurityGroup: !Ref EcsDefaultSecurityGroup
-#        LoadBalancerListenerArn: !Ref ApplicationLoadBalancerListenerArn
-#        LoadbalancerRulePriority: !Ref MicroserviceNumber
-#        CloudwatchLogKinesisStreamArn: !Ref LogsKinesisSourceStreamArn
-#        TaskRoleManagedPolicyArn: !Ref PaperEventEnricherMicroserviceTaskManagedPolicy
-#        EcsLogGroup: !Ref EcsLogGroup
-#        LogAlarmStrategyV1: !Ref LogAlarmStrategy
+  PaperEventEnricherMicroservice:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/ecs-service.yaml"
+      Parameters:
+        MicroServiceUniqueName: !Sub '${ProjectName}-paper-event-enricher'
+        CpuValue: !Ref CpuValue
+        MemoryAmount: !Ref MemoryAmount
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+        HealthCheckTimeout: !Ref HealthCheckTimeout
+        HealthCheckInterval: !Ref HealthCheckInterval
+        HealthyThresholdCount: !Ref HealthyThresholdCount
+        UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
+        MinTasksNumber: !Ref MinTasksNumber
+        MaxTasksNumber: !Ref MaxTasksNumber
+        EfsFilesystem: !Ref FargateEFSFileSystemID
+        MountEfs: !Ref MountEfs
+        WireTapLogActivation: !Ref WireTapLogActivation
+        ContainerImageURI: !Sub '${ContainerImageUri}'
+        ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
+        ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
+        ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
+        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
+        ContainerEnvEntry8: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
+        MappedPaths: '/paper-event-enricher/*'
+        ECSClusterName: !Ref ECSClusterName
+        Subnets: !Ref SubnetsIds
+        VpcId: !Ref VpcId
+        EcsDefaultSecurityGroup: !Ref EcsDefaultSecurityGroup
+        LoadBalancerListenerArn: !Ref ApplicationLoadBalancerListenerArn
+        LoadbalancerRulePriority: !Ref MicroserviceNumber
+        CloudwatchLogKinesisStreamArn: !Ref LogsKinesisSourceStreamArn
+        TaskRoleManagedPolicyArn: !Ref PaperEventEnricherMicroserviceTaskManagedPolicy
+        EcsLogGroup: !Ref EcsLogGroup
+        LogAlarmStrategyV1: !Ref LogAlarmStrategy
+        AutoscalingStrategy: 'SQS'
+        AutoscalingQueueName: !Ref PaperEventEnrichmentInputQueueName
+        AutoscalingThreshold: !Ref PaperEventEnrichmentAutoscalingThreshold
 
-#  PaperEventEnricherMicroserviceTaskManagedPolicy:
-#    Type: AWS::IAM::ManagedPolicy
-#    Properties:
-#      PolicyDocument:
-#        Version: 2012-10-17
-#        Statement:
-#          - Effect: Allow
-#            Action:
-#              - dynamodb:GetItem
-#              - dynamodb:PutItem
-#              - dynamodb:DeleteItem
-#              - dynamodb:Query
-#              - dynamodb:UpdateItem
-#            Resource:
-#              - !Sub "${PaperEventEnrichmentTableArn}"
-#              - !Sub "${PaperEventEnrichmentTableArn}/*"
-#          - Effect: Allow
-#            Action:
-#              - sqs:SendMessage
-#              - sqs:GetQueueUrl
-#              - sqs:ChangeMessageVisibility
-#              - sqs:DeleteMessage
-#              - sqs:GetQueueAttributes
-#              - sqs:ReceiveMessage
-#            Resource:
-#              - !Ref PaperArchivesQueueARN
 
-#  # CloudWatch dashboard
+  PaperEventEnricherMicroserviceTaskManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !Sub "${PaperEventEnrichmentTableArn}"
+              - !Sub "${PaperEventEnrichmentTableArn}/*"
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:GetQueueUrl
+              - sqs:ChangeMessageVisibility
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:ReceiveMessage
+            Resource:
+              - !Ref PaperArchivesQueueARN
+              - !Ref PaperEventEnrichmentInputQueueARN
+
+  # CloudWatch dashboard
   PaperEventEnricherMicroserviceCloudWatchDashboard:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/microservice-cloudwatch-dashboard.yaml"
       Parameters:
         DashboardName: !Sub "${ProjectName}-paper-event-enricher"
-#        AlarmArns: !Join
-#          - ','
-#          - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
-#        LogGroupsNames: !Join
-#          - ','
-#          - - !Ref EcsLogGroup
+        AlarmArns: !Join
+          - ','
+          - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
+        LogGroupsNames: !Join
+          - ','
+          - - !Ref EcsLogGroup
         DynamoDBTableNames: !Join
           - ','
           - - !Ref PaperEventEnrichmentTableName
         QueueArns: !Join
           - ','
           - - !Ref PaperArchivesQueueARN
+            - !Ref EnrichedEventsQueueArn
+
+  PaperEventCdcToArchivesQueuePipe:
+    Type: 'AWS::Pipes::Pipe'
+    Properties:
+      Name: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
+      Source: !Ref PaperEventEnrichmentTableKinesisStreamArn
+      SourceParameters:
+        KinesisStreamParameters:
+          BatchSize: 1
+          StartingPosition: LATEST
+        FilterCriteria:
+          Filters:
+            - Pattern: |
+                {
+                  "data": {
+                    "eventName": ["INSERT"],
+                    "dynamodb": {
+                      "NewImage": {
+                        "entityName": {"S": [ "CON020Archive"] }
+                      }
+                    }
+                  }
+                }
+      TargetParameters:
+        InputTemplate: |
+          {
+            "archiveFileKey": <$.data.dynamodb.NewImage.archiveFileKey.S>,
+            "archiveStatus": <$.data.dynamodb.NewImage.archiveStatus.S>
+          }
+      Target: !Ref PaperArchivesQueueARN
+
+  PipesEnqueueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: pipes.amazonaws.com
+            Condition:
+              StringLike:
+                'aws:SourceArn': !Sub 'arn:${AWS::Partition}:pipes:${AWS::Region}:${AWS::AccountId}:pipe/${ProjectName}-enriched-paper-event-to-*'
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+        Version: "2012-10-17"
+      Policies:
+        - PolicyName: putEventIntoQueues
+          PolicyDocument:
+            Statement:
+              - Sid: sourcePermissions
+                Action:
+                  - 'kinesis:DescribeStream'
+                  - 'kinesis:GetRecords'
+                  - 'kinesis:GetShardIterator'
+                  - 'kinesis:ListStreams'
+                  - 'kinesis:ListShards'
+                Effect: Allow
+                Resource:
+                  - !Ref PaperEventEnrichmentTableKinesisStreamArn
+              - Sid: targetPermissions
+                Action:
+                  - sqs:ChangeMessageVisibility
+                  - sqs:ChangeMessageVisibilityBatch
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                  - sqs:SendMessage
+                  - sqs:SendMessageBatch
+                Effect: Allow
+                Resource:
+                  - !Ref PaperArchivesQueueARN
+                  - !Ref EnrichedEventsQueueArn
+
+  PaperEventCdcToEnrichedEventsQueuePipe:
+    Type: 'AWS::Pipes::Pipe'
+    Properties:
+      Name: !Sub "${ProjectName}-enriched-paper-event-to-output-queue"
+      RoleArn: !GetAtt "PipesEnqueueRole.Arn"
+      Source: !Ref PaperEventEnrichmentTableKinesisStreamArn
+      SourceParameters:
+        KinesisStreamParameters:
+          BatchSize: 1
+          StartingPosition: LATEST
+        FilterCriteria:
+          Filters:
+            - Pattern: |
+                {
+                  "data": {
+                    "eventName": [ "MODIFY" ],
+                    "dynamodb": {
+                      "NewImage": {
+                        "entityName": { "S": [ "CON020Enriched"] },
+                        "printedPdf": { "S": [ { "exists": true } ] },
+                        "metadataPresent": { "BOOL": [ true ] }
+                      }
+                    }
+                  }
+                }
+      TargetParameters:
+        InputTemplate: |
+          {
+            "entityName": <$.data.dynamodb.NewImage.entityName.S>,
+            "recordCreationTime": <$.data.dynamodb.NewImage.recordCreationTime.S>,
+            "lastModificationTime": <$.data.dynamodb.NewImage.lastModificationTime.S>,
+            "archiveFileKey": <$.data.dynamodb.NewImage.metadata.M.archiveFileKey.S>,
+            "eventTime": <$.data.dynamodb.NewImage.metadata.M.eventTime.S>,
+            "generationTime": <$.data.dynamodb.NewImage.metadata.M.generationTime.S>,
+            "iun": <$.data.dynamodb.NewImage.metadata.M.iun.S>,
+            "recIndex": <$.data.dynamodb.NewImage.metadata.M.recIndex.N>,
+            "registeredLetterCode": <$.data.dynamodb.NewImage.metadata.M.registeredLetterCode.S>,
+            "sendRequestId": <$.data.dynamodb.NewImage.metadata.M.sendRequestId.S>,
+            "printedPdf": <$.data.dynamodb.NewImage.printedPdf.S>
+          }
+      Target: !Ref EnrichedEventsQueueArn
+
+  PipeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
+      AlarmDescription: "Alarm on pipe failure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      DatapointsToAlarm: 5
+      EvaluationPeriods: 10
+      Threshold: 1
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionThrottled
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionTimeout
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m4
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionPartiallyFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m5
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: Invocations
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: e1
+          Expression: ( m1 + m2 + m3 + m4 ) / m5
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
+          ReturnData: False
+        - Id: e2
+          Expression: !Sub IF( e1 > 0.1 AND m5 > 0, 1, 0)
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
+      AlarmActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      OKActions:
+        - !Sub '${AlarmSNSTopicArn}'
+
+  OnCallPipeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "oncall-${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
+      AlarmDescription: "OnCall Alarm on pipe failure"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      DatapointsToAlarm: 5
+      EvaluationPeriods: 10
+      Threshold: 1
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionThrottled
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionTimeout
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m3
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m4
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: ExecutionPartiallyFailed
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: m5
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: PipeName
+                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
+              MetricName: Invocations
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Sum
+          ReturnData: False
+        - Id: e1
+          Expression: ( m1 + m2 + m3 + m4 ) / m5
+          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
+          ReturnData: False
+        - Id: e2
+          Expression: !Sub IF( e1 > 0.2 AND m5 > 20, 1, 0)
+          Label: !Sub "OnCall-${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
+      AlarmActions:
+        - !Sub '${AlarmSNSTopicArn}'
+      OKActions:
+        - !Sub '${AlarmSNSTopicArn}'
 
