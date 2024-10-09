@@ -11,6 +11,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnrich
 import it.pagopa.pn.paper.event.enricher.model.CON020ArchiveStatusEnum;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
+import it.pagopa.pn.paper.event.enricher.utils.Sha256Handler;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
@@ -71,14 +72,14 @@ public class PaperEventEnricherService {
     }
 
     private Mono<String> uploadAndUpdatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, AtomicInteger uploadedFileCounter) {
-
-        return fileService.uploadPdf(fileDetail.getContentBytes())
+        String sha256 = Sha256Handler.computeSha256(fileDetail.getContentBytes());
+        return fileService.uploadPdf(fileDetail.getContentBytes(), sha256)
                 .doOnNext(s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()))
-                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey));
+                .flatMap(fileKey -> updatePrintedPdf(fileDetail, indexDataMap, archiveFileKey, fileKey, sha256));
     }
 
     public static InputStream createInputStreamFromByteArray(List<byte[]> byteData) {
-        return new SequenceInputStream(new Enumeration<InputStream>() {
+        return new SequenceInputStream(new Enumeration<>() {
             private int index = 0;
 
             @Override
@@ -94,10 +95,10 @@ public class PaperEventEnricherService {
     }
 
 
-    private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, String fileKey) {
+    private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey, String fileKey, String sha256) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
         if (Objects.nonNull(indexData)) {
-            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileKey, archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
+            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileKey, archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode(), sha256);
             return con020EnricherDao.updatePrintedPdf(con020EnrichedEntity)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable))
                     .map(CON020BaseEntity::getHashKey);

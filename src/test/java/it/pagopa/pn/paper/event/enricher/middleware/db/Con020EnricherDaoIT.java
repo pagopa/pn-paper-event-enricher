@@ -10,12 +10,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @Disabled
 class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired
     private Con020EnricherDao con020EnricherDao;
+
+    private final String uuid = UUID.randomUUID().toString();
 
     private static CON020EnrichedEntity createEnrichedEntityForMetadata(String hashKey, String sortKey) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
@@ -25,6 +28,8 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setLastModificationTime(Instant.now());
         con020EnrichedEntity.setRecordCreationTime(Instant.now());
         con020EnrichedEntity.setMetadataPresent(true);
+        con020EnrichedEntity.setProductType("AR");
+        con020EnrichedEntity.setStatusDescription("Affido conservato");
         CON020EnrichedEntityMetadata metadata = new CON020EnrichedEntityMetadata();
         metadata.setArchiveFileKey("archiveFileKey");
         metadata.setIun("iun");
@@ -42,6 +47,9 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
     private static CON020EnrichedEntity createEnrichedEntityForPrintedPdf(String hashKey, String sortKey) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
         con020EnrichedEntity.setHashKey(hashKey);
+        con020EnrichedEntity.setPdfSha256("5HL0UugZeqdulYq9ld4Aj88mkfcteGKS8p/1RwDT7ek=");
+        con020EnrichedEntity.setPdfDocumentType("PN_PRINTED");
+        con020EnrichedEntity.setPdfDate(Instant.now());
         con020EnrichedEntity.setEntityName("entityName");
         con020EnrichedEntity.setSortKey(sortKey);
         con020EnrichedEntity.setLastModificationTime(Instant.now());
@@ -53,13 +61,13 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
 
     @Test
     void updateMetadata_testOK() {
-        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata("hashKey1", "sortKey");
+        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
         Assertions.assertDoesNotThrow(() -> con020EnricherDao.updateMetadata(con020ArchiveEntity)).block();
     }
 
     @Test
     void updatePrintedPdf_testOK() {
-        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf("hashKey1", "sortKey");
+        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
         Assertions.assertDoesNotThrow(() -> con020EnricherDao.updatePrintedPdf(con020ArchiveEntity)).block();
 
     }

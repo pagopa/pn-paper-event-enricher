@@ -398,7 +398,12 @@ Resources:
             "recIndex": <$.data.dynamodb.NewImage.metadata.M.recIndex.N>,
             "registeredLetterCode": <$.data.dynamodb.NewImage.metadata.M.registeredLetterCode.S>,
             "sendRequestId": <$.data.dynamodb.NewImage.metadata.M.sendRequestId.S>,
-            "printedPdf": <$.data.dynamodb.NewImage.printedPdf.S>
+            "printedPdf": <$.data.dynamodb.NewImage.printedPdf.S>,
+            "productType": <$.data.dynamodb.NewImage.productType.S>,
+            "statusDescription": <$.data.dynamodb.NewImage.statusDescription.S>,
+            "pdfDocumentType": <$.data.dynamodb.NewImage.pdfDocumentType.S>,
+            "pdfSha256": <$.data.dynamodb.NewImage.pdfsha256.S>,
+            "pdfDate": <$.data.dynamodb.NewImage.pdfDate.S>
           }
       Target: !Ref EnrichedEventsQueueArn
 
