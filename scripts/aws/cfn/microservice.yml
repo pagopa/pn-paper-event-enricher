@@ -297,6 +297,12 @@ Resources:
         AlarmArns: !Join
           - ','
           - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
+            - !GetAtt PaperEventCdcToArchivesQueuePipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventCdcToEnrichedEventsQueuePipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventOutputQueueToEventBusPipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventCdcToArchivesQueuePipeAlarms.Outputs.OnCallPipeAlarmArn
+            - !GetAtt PaperEventCdcToEnrichedEventsQueuePipeAlarms.Outputs.OnCallPipeAlarmArn
+            - !GetAtt PaperEventOutputQueueToEventBusPipeAlarms.Outputs.OnCallPipeAlarmArn
         LogGroupsNames: !Join
           - ','
           - - !Ref EcsLogGroup
@@ -422,7 +428,7 @@ Resources:
           }
       Target: !Ref EnrichedEventsQueueArn
 
-  aperEventCdcToEnrichedEventsQueuePipeAlarms:
+  PaperEventCdcToEnrichedEventsQueuePipeAlarms:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/pipe-alarms.yaml"
