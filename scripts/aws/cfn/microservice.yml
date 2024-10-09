@@ -204,6 +204,13 @@ Parameters:
       - true
       - false
 
+  PaperEventOutputQueueToEventBusPipeDesiredState:
+    Type: String
+    Default: 'STOPPED'
+    Description: 'Desired state of the pipe'
+    AllowedValues:
+      - 'RUNNING'
+      - 'STOPPED'
 
 Resources:
 
@@ -290,6 +297,12 @@ Resources:
         AlarmArns: !Join
           - ','
           - - !GetAtt PaperEventEnricherMicroservice.Outputs.FatalLogsMetricAlarmArn
+            - !GetAtt PaperEventCdcToArchivesQueuePipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventCdcToEnrichedEventsQueuePipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventOutputQueueToEventBusPipeAlarms.Outputs.PipeAlarmArn
+            - !GetAtt PaperEventCdcToArchivesQueuePipeAlarms.Outputs.OnCallPipeAlarmArn
+            - !GetAtt PaperEventCdcToEnrichedEventsQueuePipeAlarms.Outputs.OnCallPipeAlarmArn
+            - !GetAtt PaperEventOutputQueueToEventBusPipeAlarms.Outputs.OnCallPipeAlarmArn
         LogGroupsNames: !Join
           - ','
           - - !Ref EcsLogGroup
@@ -415,159 +428,105 @@ Resources:
           }
       Target: !Ref EnrichedEventsQueueArn
 
-  PipeAlarm:
-    Type: AWS::CloudWatch::Alarm
+  PaperEventCdcToEnrichedEventsQueuePipeAlarms:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      AlarmName: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
-      AlarmDescription: "Alarm on pipe failure"
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      DatapointsToAlarm: 5
-      EvaluationPeriods: 10
-      Threshold: 1
-      TreatMissingData: notBreaching
-      Metrics:
-        - Id: m1
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionThrottled
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m2
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionTimeout
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m3
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m4
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionPartiallyFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m5
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: Invocations
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: e1
-          Expression: ( m1 + m2 + m3 + m4 ) / m5
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
-          ReturnData: False
-        - Id: e2
-          Expression: !Sub IF( e1 > 0.1 AND m5 > 0, 1, 0)
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
-      AlarmActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      OKActions:
-        - !Sub '${AlarmSNSTopicArn}'
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/pipe-alarms.yaml"
+      Parameters:
+        PipeName: !Ref PaperEventCdcToEnrichedEventsQueuePipe
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
 
-  OnCallPipeAlarm:
-    Type: AWS::CloudWatch::Alarm
+  PaperEventCdcToArchivesQueuePipeAlarms:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      AlarmName: !Sub "oncall-${ProjectName}-enriched-paper-event-to-archive-queue-alarm"
-      AlarmDescription: "OnCall Alarm on pipe failure"
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      DatapointsToAlarm: 5
-      EvaluationPeriods: 10
-      Threshold: 1
-      TreatMissingData: notBreaching
-      Metrics:
-        - Id: m1
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionThrottled
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m2
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionTimeout
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m3
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m4
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: ExecutionPartiallyFailed
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: m5
-          MetricStat:
-            Metric:
-              Dimensions:
-                - Name: PipeName
-                  Value: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue"
-              MetricName: Invocations
-              Namespace: AWS/SQS
-            Period: 60
-            Stat: Sum
-          ReturnData: False
-        - Id: e1
-          Expression: ( m1 + m2 + m3 + m4 ) / m5
-          Label: !Sub "${ProjectName}-enriched-paper-event-to-archive-queue-pipe-ratio"
-          ReturnData: False
-        - Id: e2
-          Expression: !Sub IF( e1 > 0.2 AND m5 > 20, 1, 0)
-          Label: !Sub "OnCall-${ProjectName}-enriched-paper-event-to-archive-queue-pipe-metric"
-      AlarmActions:
-        - !Sub '${AlarmSNSTopicArn}'
-      OKActions:
-        - !Sub '${AlarmSNSTopicArn}'
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/pipe-alarms.yaml"
+      Parameters:
+        PipeName: !Ref PaperEventCdcToArchivesQueuePipe
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+        
+  PaperEventOutputQueueToEventBusPipe:
+    Type: 'AWS::Pipes::Pipe'
+    Properties:
+      Name: !Sub "${ProjectName}-enriched-paper-event-to-event-bus"
+      RoleArn: !GetAtt "PipesQueueToEventBusRole.Arn"
+      DesiredState: !Ref PaperEventOutputQueueToEventBusPipeDesiredState
+      Source: !Ref EnrichedEventsQueueArn
+      SourceParameters:
+        SqsQueueParameters:
+          BatchSize: 10
+      Target: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/${ProjectName}-CoreEventBus
+      TargetParameters:
+        InputTemplate: |
+          {
+            "digitalCourtesy": null,
+            "digitalLegal": null,
+            "analogMail": {
+              "requestId": <$.Body.sendRequestId>,
+              "registeredLetterCode": <$.Body.registeredLetterCode>,
+              "productType": "AR",
+              "iun": null,
+              "statusCode": "CON020",
+              "statusDescription": null,
+              "statusDateTime": <$.Body.generationTime>,
+              "deliveryFailureCause": null,
+              "attachments": [
+                {
+                  "id": "0",
+                  "documentType": null,
+                  "uri": <$.Body.printedPdf>,
+                  "sha256": null,
+                  "date": <$.Body.generationTime>
+                }
+              ],
+              "discoveredAddress": null,
+              "clientRequestTimeStamp": <$.Body.eventTime>
+            },
+            "clientId": "pn-cons-000",
+            "eventTimestamp": <$.Body.eventTime>
+          }        
+        EventBridgeEventBusParameters:
+          DetailType: 'ExternalChannelOutcomeEvent'
+          Source: 'PAPER ENRICHER'
 
+  PipesQueueToEventBusRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: pipes.amazonaws.com
+            Condition:
+              StringLike:
+                'aws:SourceArn': !Sub 'arn:${AWS::Partition}:pipes:${AWS::Region}:${AWS::AccountId}:pipe/${ProjectName}-enriched-paper-event-to-event-bus'
+                'aws:SourceAccount': !Ref 'AWS::AccountId'
+        Version: "2012-10-17"
+      Policies:
+        - PolicyName: putEventIntoQueues
+          PolicyDocument:
+            Statement:
+              - Sid: sourcePermissions
+                Action:
+                  - 'sqs:ChangeMessageVisibility'
+                  - 'sqs:ChangeMessageVisibilityBatch'
+                  - 'sqs:GetQueueAttributes'
+                  - 'sqs:GetQueueUrl'
+                  - 'sqs:SendMessage'
+                  - 'sqs:SendMessageBatch'
+                Effect: Allow
+                Resource:
+                  - !Ref EnrichedEventsQueueArn
+              - Sid: targetPermissions
+                Action:
+                  - events:PutEvents
+                Effect: Allow
+                Resource: !Sub '${ProjectName}-CoreEventBus'
+
+  PaperEventOutputQueueToEventBusPipeAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/pipe-alarms.yaml"
+      Parameters:
+        PipeName: !Ref PaperEventOutputQueueToEventBusPipe
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
