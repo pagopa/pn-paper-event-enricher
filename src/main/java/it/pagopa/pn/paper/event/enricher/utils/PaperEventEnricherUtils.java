@@ -177,15 +177,6 @@ public class PaperEventEnricherUtils {
         }
     }
 
-    public static byte[] getContent(InputStream zipInputStream, String fileName) {
-        try {
-            return zipInputStream.readAllBytes();
-        } catch (IOException e) {
-            log.error("Failed to read file [{}]", fileName, e);
-            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
-        }
-    }
-
     public static Map<String, IndexData> parseBol(byte[] bolBytes) {
         String bolString = new String(bolBytes);
         Map<String, IndexData> archiveDetails = new HashMap<>();

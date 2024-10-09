@@ -2,6 +2,8 @@ package it.pagopa.pn.paper.event.enricher.middleware.queue.consumer;
 
 import it.pagopa.pn.commons.exceptions.PnInternalException;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
+import it.pagopa.pn.paper.event.enricher.middleware.queue.consumer.EventHandler;
+import it.pagopa.pn.paper.event.enricher.middleware.queue.consumer.PnEventInboundService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
