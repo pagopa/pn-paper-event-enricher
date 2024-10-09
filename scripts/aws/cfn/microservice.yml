@@ -512,8 +512,7 @@ Resources:
                   - 'sqs:ChangeMessageVisibilityBatch'
                   - 'sqs:GetQueueAttributes'
                   - 'sqs:GetQueueUrl'
-                  - 'sqs:SendMessage'
-                  - 'sqs:SendMessageBatch'
+                  - 'sqs:ReceiveMessage'
                 Effect: Allow
                 Resource:
                   - !Ref EnrichedEventsQueueArn
