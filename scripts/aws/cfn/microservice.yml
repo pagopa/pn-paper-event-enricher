@@ -513,6 +513,7 @@ Resources:
                   - 'sqs:GetQueueAttributes'
                   - 'sqs:GetQueueUrl'
                   - 'sqs:ReceiveMessage'
+                  - 'sqs:DeleteMessage'
                 Effect: Allow
                 Resource:
                   - !Ref EnrichedEventsQueueArn
