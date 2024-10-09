@@ -228,7 +228,7 @@ Resources:
         ContainerImageURI: !Sub '${ContainerImageUri}'
         ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
         ContainerEnvEntry2: !Sub 'PN_PAPEREVENTENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
-        ContainerEnvEntry3: !Sub 'SPRING_CLOUD_STREAM_BINDINGS_FUNCTIONROUTER_IN_0_DESTINATION=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
         ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
         ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
         ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=http://${ApplicationLoadBalancerDomain}:8080'
