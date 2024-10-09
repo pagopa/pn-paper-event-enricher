@@ -521,7 +521,7 @@ Resources:
                 Action:
                   - events:PutEvents
                 Effect: Allow
-                Resource: !Sub '${ProjectName}-CoreEventBus'
+                Resource: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/${ProjectName}-CoreEventBus
 
   PaperEventOutputQueueToEventBusPipeAlarms:
     Type: AWS::CloudFormation::Stack
