@@ -91,7 +91,7 @@ Parameters:
     Type: String
     Description: Name of the queue where paper event enrichments are stored
 
-  PaperEventEnrichmentInputQueueARN:
+  PnPaperEventEnricherInputQueueARN:
     Type: String
     Description: Arn of the queue where paper event enrichments are stored
 
@@ -115,6 +115,17 @@ Parameters:
   PaperEventEnrichmentTableKinesisStreamArn:
     Type: String
     Description: 'Arn of the kinesis stream where paper event enrichments are stored'
+
+  SafeStorageConnectionTimeoutMillis:
+    Type: Number
+    Description: 'Connection timeout millis for safe storage'
+    Default: 20000
+
+  SafeStorageConnectionReadMillis:
+    Type: Number
+    Description: 'Read timeout millis for safe storage'
+    Default: 20000
+
 
   # Instance parameters
   # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
@@ -216,13 +227,15 @@ Resources:
         WireTapLogActivation: !Ref WireTapLogActivation
         ContainerImageURI: !Sub '${ContainerImageUri}'
         ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
-        ContainerEnvEntry2: !Sub 'PN_PAPER_EVENT_ENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
-        ContainerEnvEntry3: !Sub 'PN_PAPER_EVENT_ENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry4: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-        ContainerEnvEntry5: !Sub 'PN_PAPER_EVENT_ENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry6: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGE_BASEURL=http://${ApplicationLoadBalancerDomain}:8080'
-        ContainerEnvEntry7: !Sub 'PN_PAPER_EVENT_ENRICHER_CXID=${PaperEventEnrichmentCxId}'
-        ContainerEnvEntry8: !Sub 'PN_PAPER_EVENT_ENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
+        ContainerEnvEntry2: !Sub 'PN_PAPEREVENTENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
+        ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
+        ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry7: !Sub 'PN_PAPEREVENTENRICHER_CXID=${PaperEventEnrichmentCxId}'
+        ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
+        ContainerEnvEntry9: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'
+        ContainerEnvEntry10: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEREADTIMEOUTMILLIS=${SafeStorageConnectionReadMillis}'
         MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
@@ -265,7 +278,7 @@ Resources:
               - sqs:ReceiveMessage
             Resource:
               - !Ref PaperArchivesQueueARN
-              - !Ref PaperEventEnrichmentInputQueueARN
+              - !Ref PnPaperEventEnricherInputQueueARN
 
   # CloudWatch dashboard
   PaperEventEnricherMicroserviceCloudWatchDashboard:
