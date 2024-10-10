@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Some storage with input and output
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: Nome dell'ambiente destinazione
+
+  MicroserviceNumber:
+    Type: Number
+    Description: An unique number that identify the microservice inside the ECS cluster.
+
+  TemplateBucketBaseUrl:
+    Type: String
+    Description: URL da cui caricare i frammenti di template di infrastruttura
+
+  Version:
+    Type: String
+    Description: 'keep track of used projects commitIds'
+
+  AlarmSNSTopicArn:
+    Type: String
+    Description: 'Topic alarm ARN'
+
+  AlarmSNSTopicName:
+    Type: String
+    Description: 'Topic alarm name'
+
+  LogsKinesisSourceStreamArn:
+    Type: String
+    Description: 'Where to send Logs'
+
+Resources:
+  PaperEventEnrichmentTable:
+    Type: AWS::DynamoDB::Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub '${ProjectName}-PaperChannelEventEnrichment'
+      AttributeDefinitions:
+        - AttributeName: "hashKey"
+          AttributeType: "S"
+        - AttributeName: "sortKey"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "hashKey"
+          KeyType: "HASH"
+        - AttributeName: "sortKey"
+          KeyType: "RANGE"
+      BillingMode: "PAY_PER_REQUEST"
+      KinesisStreamSpecification:
+        StreamArn: !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: "ttl"
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  PaperEventEnrichmentCdc:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/kinesis-data-stream.yaml"
+      Parameters:
+        StreamName: !Sub "${ProjectName}-paper-event-enrichment-cdc"
+        # PROVISIONED MODE: follow shard configuration
+        StreamShardsCount: 0
+        StreamRetentionHours: 720
+        RequireManagedKey: false
+        # USES SNSTopic used for all Kinesis alarms
+        AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+        StandardAlarmThresholdsMs: 172800000 # 2 days
+        OnCallAlarmThresholdsMs: 432000000  # 5 days
+
+  PaperArchivesQueue:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+      Parameters:
+        QueueName: !Sub '${ProjectName}-paper-archives'
+        AlarmSNSTopicName: !Ref AlarmSNSTopicName
+        VisibilityTimeout: 18000
+        MaxReceiveCount: 1
+        DelaySeconds: 1
+        MessageRetentionPeriod: 1209600
+
+  EnrichedEventsQueue:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/sqs-queue.yaml"
+      Parameters:
+        QueueName: !Sub '${ProjectName}-paper-event-enrichment-output'
+        AlarmSNSTopicName: !Ref AlarmSNSTopicName
+        VisibilityTimeout: 60
+        MaxReceiveCount: 10
+        DelaySeconds: 1
+        MessageRetentionPeriod: 1209600
+
+  PaperEventEnrichmentLogGroup:
+    Type: AWS::CloudFormation::Stack
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/log-group.yaml"
+      Parameters:
+        LogGroupName: !Sub '${ProjectName}-paper-event-enricher'
+        LogsKinesisSourceStreamArn: !Ref LogsKinesisSourceStreamArn
+
+Outputs:
+  PaperEventEnrichmentTableName:
+    Description: Name of dynamodb table containing paper event enrichments
+    Value: !Ref PaperEventEnrichmentTable
+
+  PaperEventEnrichmentTableArn:
+    Description: Arn of dynamodb table containing paper event enrichments
+    Value: !Sub '${PaperEventEnrichmentTable.Arn}'
+
+  PaperArchivesQueueName:
+    Value: !GetAtt PaperArchivesQueue.Outputs.QueueName
+
+  PaperArchivesQueueARN:
+    Value: !GetAtt PaperArchivesQueue.Outputs.QueueARN
+
+  EnrichedEventsQueueArn:
+    Value: !GetAtt EnrichedEventsQueue.Outputs.QueueARN
+
+  PaperEventEnrichmentTableKinesisStreamArn:
+    Value: !GetAtt PaperEventEnrichmentCdc.Outputs.KinesisStreamArn
+
+  # Log group exports
+  EcsLogGroup:
+    Value: !GetAtt PaperEventEnrichmentLogGroup.Outputs.LogGroupName
+
+
+
