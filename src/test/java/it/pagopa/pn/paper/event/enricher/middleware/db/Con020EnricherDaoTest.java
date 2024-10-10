@@ -1,22 +1,57 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.config.BaseTest;
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
+import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import reactor.test.StepVerifier;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-@Disabled
-class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-    @Autowired
-    private Con020EnricherDao con020EnricherDao;
+@ExtendWith(SpringExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class Con020EnricherDaoTest {
+
+    private Con020EnricherDaoImpl con020EnricherDao;
+    @MockBean
+    private DynamoDbAsyncClient dynamoDbAsyncClient;
+
+    @MockBean
+    private DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient;
+
+    DynamoDbAsyncTable<CON020ArchiveEntity> tableAsync;
+
+
+    @BeforeAll
+    void setUp() {
+        tableAsync = mock(DynamoDbAsyncTable.class);
+        PnPaperEventEnricherConfig pnPaperEventEnricherConfig = new PnPaperEventEnricherConfig();
+        PnPaperEventEnricherConfig.Dao dao = new PnPaperEventEnricherConfig.Dao();
+        dao.setPaperEventEnrichmentTable("tableName");
+        pnPaperEventEnricherConfig.setDao(dao);
+        when(dynamoDbEnhancedAsyncClient.table(anyString(), (TableSchema<CON020ArchiveEntity>) any())).thenReturn(tableAsync);
+        con020EnricherDao = new Con020EnricherDaoImpl(dynamoDbEnhancedAsyncClient, dynamoDbAsyncClient, pnPaperEventEnricherConfig);
+    }
 
     private final String uuid = UUID.randomUUID().toString();
 
@@ -62,13 +97,17 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
     @Test
     void updateMetadata_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
-        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updateMetadata(con020ArchiveEntity)).block();
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
+        StepVerifier.create(con020EnricherDao.updateMetadata(con020ArchiveEntity)).verifyComplete();
     }
 
     @Test
     void updatePrintedPdf_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
-        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updatePrintedPdf(con020ArchiveEntity)).block();
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
+        StepVerifier.create(con020EnricherDao.updatePrintedPdf(con020ArchiveEntity)).verifyComplete();
 
     }
 }

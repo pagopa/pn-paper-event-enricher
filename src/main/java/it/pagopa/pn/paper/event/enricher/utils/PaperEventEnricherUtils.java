@@ -76,6 +76,8 @@ public class PaperEventEnricherUtils {
 
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveUri, requestId, registeredLetterCode));
+        con020EnrichedEntity.setProductType(payload.getAnalogMail().getProductType());
+        con020EnrichedEntity.setStatusDescription(payload.getAnalogMail().getStatusDescription());
         con020EnrichedEntity.setSortKey(SORT_KEY);
         con020EnrichedEntity.setEntityName(ENRICHED_ENTITY_NAME);
         con020EnrichedEntity.setRecordCreationTime(now);
@@ -146,12 +148,15 @@ public class PaperEventEnricherUtils {
         return con020ArchiveEntity;
     }
 
-    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String archiveFileKey, String requestId, String registeredLetterCode) {
+    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String archiveFileKey, String requestId, String registeredLetterCode, String sha256) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
 
         Instant now = Instant.now();
 
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
+        con020EnrichedEntity.setPdfDocumentType(DOCUMENT_TYPE);
+        con020EnrichedEntity.setPdfSha256(sha256);
+        con020EnrichedEntity.setPdfDate(Instant.now());
         con020EnrichedEntity.setSortKey(SORT_KEY);
         con020EnrichedEntity.setEntityName(ENRICHED_ENTITY_NAME);
         con020EnrichedEntity.setRecordCreationTime(now);
@@ -164,15 +169,6 @@ public class PaperEventEnricherUtils {
     }
 
     public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
-        try {
-            return zipInputStream.readAllBytes();
-        } catch (IOException e) {
-            log.error("Failed to read file [{}]", fileName, e);
-            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
-        }
-    }
-
-    public static byte[] getContent(InputStream zipInputStream, String fileName) {
         try {
             return zipInputStream.readAllBytes();
         } catch (IOException e) {

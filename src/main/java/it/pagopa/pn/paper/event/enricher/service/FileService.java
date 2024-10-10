@@ -77,7 +77,7 @@ public class FileService {
         return safeStorageService.downloadContent(url);
     }
 
-    public Mono<String> uploadPdf(byte[] pdfBytes) {
-        return safeStorageService.callSafeStorageCreateFileAndUpload(pdfBytes, Sha256Handler.computeSha256(pdfBytes));
+    public Mono<String> uploadPdf(byte[] pdfBytes, String sha256) {
+        return safeStorageService.callSafeStorageCreateFileAndUpload(pdfBytes, sha256);
     }
 }
