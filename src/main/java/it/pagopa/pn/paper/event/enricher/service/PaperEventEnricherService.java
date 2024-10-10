@@ -13,13 +13,11 @@ import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +35,7 @@ public class PaperEventEnricherService {
     private final Con020ArchiveDao con020ArchiveDao;
     private final Con020EnricherDao con020EnricherDao;
     private final FileService fileService;
+    private final SafeStorageService safeStorageService;
 
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
@@ -54,26 +53,20 @@ public class PaperEventEnricherService {
     public Mono<CON020ArchiveEntity> handlePaperEventEnricherEvent(PaperArchiveEvent.Payload payload) {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         String archiveFileKey = payload.getArchiveFileKey();
-        PipedInputStream pipedInputStream = new PipedInputStream();
-        PipedOutputStream pipedOutputStream = fileService.initializePipedOutputStream(pipedInputStream);
-        log.info("inizialized PipedOutputStream");
+        Path path = fileService.createTmpFile();
 
-        con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSING.name()))
+        return con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSING.name()))
                 .doOnNext(con020ArchiveEntity -> log.info("Archive entity updated: {} to PROCESSING", con020ArchiveEntity.getHashKey()))
-                .flatMap(con020ArchiveEntity -> fileService.retrieveDownloadUrl(archiveFileKey))
-                .flatMapMany(fileService::downloadFile)
-                .doOnNext(bytes -> fileService.writeToPipedOutputStream(bytes, pipedOutputStream))
-                .doFinally(signalType -> fileService.closeStream(pipedOutputStream))
-                .subscribe();
-
-        return fileService.extractFileFromBin(new ZipArchiveInputStream(pipedInputStream))
-                .doOnNext(fileDetail -> log.info("FileDetail: {}", fileDetail.getFilename()))
-                .flatMapMany(fileDetail -> {
-                    AtomicInteger uploadedFileCounter = new AtomicInteger(0);
-                    return fileService.extractFilesFromArchive(new ZipArchiveInputStream(fileDetail.getContent()), indexDataMap, uploadedFileCounter);
-                })
-                .collectList()
-                .flatMap(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey))
+                .flatMap(con020ArchiveEntity -> safeStorageService.callSafeStorageGetFileAndDownload(archiveFileKey))
+                .flatMapMany(url -> safeStorageService.downloadContent(url, path))
+                .then(Mono.just(path))
+                .flatMap(subscriber -> fileService.extractFileFromBin(path)
+                        .flatMapMany(newFile -> {
+                            AtomicInteger uploadedFileCounter = new AtomicInteger(0);
+                            return fileService.extractFileFromArchive(newFile, indexDataMap, uploadedFileCounter);
+                        })
+                        .collectList()
+                        .flatMap(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey)))
                 .flatMap(unused -> con020ArchiveDao.updateIfExists(createArchiveEntityForStatusUpdate(payload, CON020ArchiveStatusEnum.PROCESSED.name())));
     }
 

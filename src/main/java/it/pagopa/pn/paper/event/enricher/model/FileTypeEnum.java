@@ -6,7 +6,9 @@ import lombok.Getter;
 public enum FileTypeEnum {
     BOL(".bol"),
     PDF(".pdf"),
-    P7M(".p7m");
+    P7M(".p7m"),
+    ZIP(".zip"),
+    SEVENZIP(".7z");
 
     private final String value;
 

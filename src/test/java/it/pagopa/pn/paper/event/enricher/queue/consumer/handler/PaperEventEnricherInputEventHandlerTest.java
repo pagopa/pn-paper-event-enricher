@@ -4,6 +4,7 @@ import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.consumer.handler.PaperEventEnricherInputEventHandler;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
 import it.pagopa.pn.commons.utils.MDCUtils;
+import it.pagopa.pn.paper.event.enricher.service.PaperEventEnricherService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ import static org.mockito.Mockito.*;
 class PaperEventEnricherInputEventHandlerTest {
 
     @Mock
-    private PaperEventEnricherService3 paperEventEnricherService;
+    private PaperEventEnricherService paperEventEnricherService;
 
     @Mock
     private Message<PaperEventEnricherInputEvent.Payload> message;

@@ -3,7 +3,11 @@ package it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.saf
 import io.netty.handler.timeout.TimeoutException;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.model.FileCreationResponse;
+import it.pagopa.pn.paper.event.enricher.model.ByteObject;
+import it.pagopa.pn.paper.event.enricher.model.FileTypeEnum;
+import it.pagopa.pn.paper.event.enricher.service.FileService;
 import lombok.CustomLog;
+import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpMethod;
@@ -18,9 +22,20 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import javax.net.ssl.SSLHandshakeException;
+import java.io.File;
+import java.io.IOException;
 import java.io.PipedOutputStream;
 import java.net.*;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.SEVENZIP;
+import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.ZIP;
 
 @Component
 @CustomLog
@@ -44,7 +59,7 @@ public class UploadDownloadClient {
                 .uri(URI.create(fileCreationResponse.getUploadUrl()))
                 .header("Content-Type", "application/pdf")
                 .header("x-amz-meta-secret", fileCreationResponse.getSecret())
-                .header("x-amz-checksum-sha256",sha256)
+                .header("x-amz-checksum-sha256", sha256)
                 .bodyValue(content)
                 .retrieve()
                 .toBodilessEntity()
@@ -55,30 +70,37 @@ public class UploadDownloadClient {
                 });
     }
 
-    public Flux<byte[]> downloadContent(String downloadUrl) {
+    public Mono<Void> downloadContent(String downloadUrl, Path path) {
         log.info("start to download file to: {}", downloadUrl);
         try {
+            WritableByteChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             return webClient
                     .get()
                     .uri(new URI(downloadUrl))
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
-                    .map(dataBuffer -> {
-                        byte[] bytes = new byte[dataBuffer.readableByteCount()];
-                        dataBuffer.read(bytes);
-                        DataBufferUtils.release(dataBuffer); // Release buffer
-                        return bytes;
+                    .flatMap(dataBuffer -> {
+                        log.info("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
+                        return DataBufferUtils.write(Flux.just(dataBuffer), channel)
+                                .doOnError(e -> log.error("Error during file writing"))
+                                .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
                     })
-                    .doOnError(ex -> log.error("Error in WebClient", ex))
-                    .onErrorMap(ex -> {
-                        log.error("downloadContent Exception downloading content", ex);
-                        return new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR");
-                    });
-        } catch (URISyntaxException ex) {
+                    .doOnComplete(() -> {
+                        try {
+                            channel.close();
+                            log.info("Download and file writing completed successfully");
+                        } catch (IOException e) {
+                            log.error("Error closing channel", e);
+                        }
+                    })
+                    .then();
+
+        } catch (URISyntaxException | IOException ex) {
             log.error("error in URI ", ex);
-            return Flux.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
+            return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
     }
+
 
     protected ExchangeFilterFunction buildRetryExchangeFilterFunction() {
         return (request, next) -> next.exchange(request)
@@ -87,7 +109,7 @@ public class UploadDownloadClient {
                         .flatMap(response -> clientResponse.createException())
                         .flatMap(Mono::error)
                         .thenReturn(clientResponse))
-                .retryWhen( Retry.backoff(RETRY_MAX_ATTEMPTS_PRESIGNED_URL, Duration.ofMillis(25)).jitter(0.75)
+                .retryWhen(Retry.backoff(RETRY_MAX_ATTEMPTS_PRESIGNED_URL, Duration.ofMillis(25)).jitter(0.75)
                         .filter(this::isRetryableException)
                         .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> {
                             Throwable lastExceptionInRetry = retrySignal.failure();
@@ -107,9 +129,8 @@ public class UploadDownloadClient {
                 throwable instanceof WebClientResponseException.TooManyRequests ||
                 throwable instanceof WebClientResponseException.GatewayTimeout ||
                 throwable instanceof WebClientResponseException.BadGateway ||
-                throwable instanceof WebClientResponseException.ServiceUnavailable
-                ;
-        if(retryable) {
+                throwable instanceof WebClientResponseException.ServiceUnavailable;
+        if (retryable) {
             log.warn("Exception caught by retry", throwable);
         }
         return retryable;

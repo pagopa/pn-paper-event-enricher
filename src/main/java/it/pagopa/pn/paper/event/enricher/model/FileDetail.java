@@ -12,9 +12,9 @@ public class FileDetail {
     private InputStream content;
     private String fileKey;
 
-    public FileDetail(String filename, String fileKey, InputStream content) {
+    public FileDetail(String filename, InputStream content, String fileKey) {
         this.filename = filename;
-        this.fileKey = fileKey;
         this.content = content;
+        this.fileKey = fileKey;
     }
 }

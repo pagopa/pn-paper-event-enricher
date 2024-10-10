@@ -11,7 +11,9 @@ import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -163,15 +165,6 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
-        try {
-            return zipInputStream.readAllBytes();
-        } catch (IOException e) {
-            log.error("Failed to read file [{}]", fileName, e);
-            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
-        }
-    }
-
     public static byte[] getContent(InputStream zipInputStream, String fileName) {
         try {
             return zipInputStream.readAllBytes();
@@ -187,13 +180,15 @@ public class PaperEventEnricherUtils {
         for (String line : bolString.split("\n")) {
             if (!line.isEmpty()) {
                 String[] cells = line.split("\\|");
-                String p7mEntryName = cells[0];
-                String requestId = cells[3];
-                String registeredLetterCode = cells[6];
+                if(cells.length > 6) { //TODO: DECIDE CON VINCENZO
+                    String p7mEntryName = cells[0];
+                    String requestId = cells[3];
+                    String registeredLetterCode = cells[6];
 
-                if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
-                    IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
-                    archiveDetails.put(p7mEntryName, indexData);
+                    if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
+                        IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
+                        archiveDetails.put(p7mEntryName, indexData);
+                    }
                 }
             }
         }
