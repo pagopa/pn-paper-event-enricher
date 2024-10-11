@@ -1,58 +1,54 @@
 package it.pagopa.pn.paper.event.enricher.utils;
 
 import org.bouncycastle.asn1.*;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 
 public class P7mUtils {
 
-    public static InputStream findSignedData(InputStream inStrm ) {
-        ASN1StreamParser ap = new ASN1StreamParser( inStrm );
-
-        Object content = null;
+    public static Mono<InputStream> findSignedData(InputStream inStrm) {
+        ASN1StreamParser ap = new ASN1StreamParser(inStrm);
         try {
-            content = ap.readObject();
-            return recursiveParse("",  content );
+            return Mono.just(Objects.requireNonNull(recursiveParse(ap.readObject())));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static InputStream recursiveParse( String prefix, Object obj) throws IOException {
-        InputStream result = null;
-
-        System.out.println(  prefix + ") " + ( obj == null ? "<null>" : obj.getClass()) + " [" + obj + "]" );
-
-        if( obj instanceof ASN1SequenceParser) {
-            ASN1SequenceParser seqParser = (ASN1SequenceParser) obj;
-
-            int i = 0;
-            Object child = new Object();
-            while( ! ( child instanceof DERNull) && child != null && result == null) {
-                child = seqParser.readObject();
-                i += 1;
-                String p = prefix + "." + i;
-
-
-                result = recursiveParse( p, child);
+    private static InputStream recursiveParse(Object obj) {
+        if (obj instanceof ASN1SequenceParser seqParser) {
+            return parseSequence(seqParser);
+        } else if (obj instanceof ASN1TaggedObjectParser objParser) {
+            try {
+                Object child = objParser.parseExplicitBaseObject();
+                return recursiveParse(child);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
+        } else if (obj instanceof ASN1OctetStringParser octetStringParser) {
+            return octetStringParser.getOctetStream();
         }
-        else if ( obj instanceof ASN1TaggedObjectParser) {
-            ASN1TaggedObjectParser op = (ASN1TaggedObjectParser) obj;
-
-            System.out.println(  prefix + ".0) Tag: " + op.getTagNo() );
-            //Object child = op.getObjectParser( op.getTagNo(), true);
-            Object child = op.parseExplicitBaseObject();
-
-            result = recursiveParse( prefix + ".1", child);
-        }
-        else if ( obj instanceof ASN1OctetStringParser) {
-            ASN1OctetStringParser osp = (ASN1OctetStringParser) obj;
-            InputStream inStrm = osp.getOctetStream();
-            result = inStrm;
-        }
-
-        return result;
+        return null;
     }
+
+    private static InputStream parseSequence(ASN1SequenceParser seqParser) {
+        try {
+            InputStream result = null;
+            ASN1Encodable child;
+            while ((child = seqParser.readObject()) != null && !(child instanceof DERNull)) {
+                result = recursiveParse(child);
+                if (result != null) {
+                    break;
+                }
+            }
+            return result;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }
+

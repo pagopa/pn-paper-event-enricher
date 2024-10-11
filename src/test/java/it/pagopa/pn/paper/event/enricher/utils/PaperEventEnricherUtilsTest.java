@@ -19,7 +19,7 @@ class PaperEventEnricherUtilsTest {
         String registeredLetterCode = "registeredLetterCode";
         String sha256 = "sha256";
 
-        CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForPrintedPdf(fileKey, archiveFileKey, requestId, registeredLetterCode, sha256);
+        CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForPrintedPdf(fileKey, sha256, archiveFileKey, requestId, registeredLetterCode);
 
         assertNotNull(result);
         assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode), result.getHashKey());

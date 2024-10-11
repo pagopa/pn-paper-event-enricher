@@ -16,6 +16,7 @@ public class CON020ArchiveEntity extends CON020BaseEntity {
     public static final String COL_ARCHIVE_FILE_KEY = "archiveFileKey";
     public static final String COL_ARCHIVE_STATUS = "archiveStatus";
     public static final String COL_PROCESSING_TASK = "processingTask";
+    public static final String COL_FILE_NUMBER = "fileNumber";
 
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_ARCHIVE_FILE_KEY)}))
     private String archiveFileKey;
@@ -23,6 +24,8 @@ public class CON020ArchiveEntity extends CON020BaseEntity {
     private String archiveStatus;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_PROCESSING_TASK)}))
     private String processingTask;
+    @Getter(onMethod = @__({@DynamoDbAttribute(COL_FILE_NUMBER)}))
+    private Integer fileNumber;
 
     public static String buildHashKeyForCon020ArchiveEntity(String archiveFileKey) {
         return ARCHIVE_HASH_KEY_PREFIX + removePrefixFromArchiveFileKey(archiveFileKey);

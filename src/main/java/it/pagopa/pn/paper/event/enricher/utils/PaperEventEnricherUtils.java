@@ -11,7 +11,6 @@ import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -27,7 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.*;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_CODE_INVALID_REQUESTID;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.FAILED_TO_READ_FILE;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 
 @Slf4j
@@ -133,7 +133,7 @@ public class PaperEventEnricherUtils {
         }
     }
 
-    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status) {
+    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status, Integer counter) {
         Instant now = Instant.now();
         String taskId = System.getenv("ECS_AGENT_URI");
 
@@ -144,11 +144,12 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
+        con020ArchiveEntity.setFileNumber(counter);
 
         return con020ArchiveEntity;
     }
 
-    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String archiveFileKey, String requestId, String registeredLetterCode, String sha256) {
+    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String archiveFileKey, String requestId, String registeredLetterCode) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
 
         Instant now = Instant.now();
@@ -168,7 +169,7 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
+    public static byte[] getContent(InputStream zipInputStream, String fileName) {
         try {
             return zipInputStream.readAllBytes();
         } catch (IOException e) {
@@ -183,13 +184,15 @@ public class PaperEventEnricherUtils {
         for (String line : bolString.split("\n")) {
             if (!line.isEmpty()) {
                 String[] cells = line.split("\\|");
-                String p7mEntryName = cells[0];
-                String requestId = cells[3];
-                String registeredLetterCode = cells[6];
+                if(cells.length > 6) { //TODO: DECIDERE CON VINCENZO
+                    String p7mEntryName = cells[0];
+                    String requestId = cells[3];
+                    String registeredLetterCode = cells[6];
 
-                if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
-                    IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
-                    archiveDetails.put(p7mEntryName, indexData);
+                    if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
+                        IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
+                        archiveDetails.put(p7mEntryName, indexData);
+                    }
                 }
             }
         }

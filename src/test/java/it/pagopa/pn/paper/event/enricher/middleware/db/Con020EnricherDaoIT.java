@@ -12,7 +12,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-@Disabled
 class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired

@@ -17,7 +17,6 @@ import java.util.UUID;
 
 @ExtendWith(SpringExtension.class)
 @TestPropertySource("classpath:application-test.properties")
-@Disabled
 class Con020ArchiveDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired

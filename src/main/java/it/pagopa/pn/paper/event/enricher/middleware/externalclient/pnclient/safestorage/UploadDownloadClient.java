@@ -18,7 +18,12 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import javax.net.ssl.SSLHandshakeException;
+import java.io.IOException;
 import java.net.*;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 
 @Component
@@ -43,7 +48,7 @@ public class UploadDownloadClient {
                 .uri(URI.create(fileCreationResponse.getUploadUrl()))
                 .header("Content-Type", "application/pdf")
                 .header("x-amz-meta-secret", fileCreationResponse.getSecret())
-                .header("x-amz-checksum-sha256",sha256)
+                .header("x-amz-checksum-sha256", sha256)
                 .bodyValue(content)
                 .retrieve()
                 .toBodilessEntity()
@@ -54,30 +59,39 @@ public class UploadDownloadClient {
                 });
     }
 
-    public Flux<byte[]> downloadContent(String downloadUrl) {
+    public Mono<Void> downloadContent(String downloadUrl, Path path) {
         log.info("start to download file to: {}", downloadUrl);
         try {
+            WritableByteChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             return webClient
                     .get()
                     .uri(new URI(downloadUrl))
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
-                    .map(dataBuffer -> {
-                        byte[] bytes = new byte[dataBuffer.readableByteCount()];
-                        dataBuffer.read(bytes);
-                        DataBufferUtils.release(dataBuffer); // Release buffer
-                        return bytes;
+                    .flatMap(dataBuffer -> {
+                        log.info("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
+                        return DataBufferUtils.write(Flux.just(dataBuffer), channel)
+                                .doOnError(e -> log.error("Error during file writing"))
+                                .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
                     })
-                    .doOnError(ex -> log.error("Error in WebClient", ex))
-                    .onErrorMap(ex -> {
-                        log.error("downloadContent Exception downloading content", ex);
-                        return new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR");
-                    });
-        } catch (URISyntaxException ex) {
+                    .doOnComplete(() -> closeWritableByteChannel(channel))
+                    .then();
+
+        } catch (URISyntaxException | IOException ex) {
             log.error("error in URI ", ex);
-            return Flux.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
+            return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
     }
+
+    public void closeWritableByteChannel(WritableByteChannel channel) {
+        try {
+            channel.close();
+            log.info("Download and file writing completed successfully");
+        } catch (IOException e) {
+            log.error("Error closing channel", e);
+        }
+    }
+
 
     protected ExchangeFilterFunction buildRetryExchangeFilterFunction() {
         return (request, next) -> next.exchange(request)

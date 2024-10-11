@@ -1,14 +1,16 @@
 package it.pagopa.pn.paper.event.enricher.utils;
 
-import it.pagopa.pn.commons.exceptions.PnInternalException;
-import it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode;
+import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_WHILE_COMPUTING_SHA_256_HASH;
+
 public class Sha256Handler {
+
+
     private Sha256Handler() { }
     private static final String ALGORITHM = "SHA-256";
 
@@ -18,7 +20,7 @@ public class Sha256Handler {
                     .digest(content);
             return bytesToBase64(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new PnInternalException(PnPaperEventEnricherExceptionCode.ERROR_MESSAGE_PAPER_EVENT_ENRICHER_ERRORCOMPUTECHECKSUM);
+            throw new PaperEventEnricherException(ERROR_WHILE_COMPUTING_SHA_256_HASH, 500, ERROR_WHILE_COMPUTING_SHA_256_HASH);
         }
     }
 
