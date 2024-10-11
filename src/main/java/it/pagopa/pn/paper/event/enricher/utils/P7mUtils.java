@@ -10,7 +10,7 @@ public class P7mUtils {
     public static InputStream findSignedData(InputStream inStrm ) {
         ASN1StreamParser ap = new ASN1StreamParser( inStrm );
 
-        Object content = null;
+        Object content;
         try {
             content = ap.readObject();
             return recursiveParse("",  content );
@@ -22,7 +22,7 @@ public class P7mUtils {
     private static InputStream recursiveParse( String prefix, Object obj) throws IOException {
         InputStream result = null;
 
-        System.out.println(  prefix + ") " + ( obj == null ? "<null>" : obj.getClass()) + " [" + obj + "]" );
+      //  System.out.println(  prefix + ") " + ( obj == null ? "<null>" : obj.getClass()) + " [" + obj + "]" );
 
         if( obj instanceof ASN1SequenceParser) {
             ASN1SequenceParser seqParser = (ASN1SequenceParser) obj;
@@ -41,8 +41,7 @@ public class P7mUtils {
         else if ( obj instanceof ASN1TaggedObjectParser) {
             ASN1TaggedObjectParser op = (ASN1TaggedObjectParser) obj;
 
-            System.out.println(  prefix + ".0) Tag: " + op.getTagNo() );
-            //Object child = op.getObjectParser( op.getTagNo(), true);
+        //    System.out.println(  prefix + ".0) Tag: " + op.getTagNo() );
             Object child = op.parseExplicitBaseObject();
 
             result = recursiveParse( prefix + ".1", child);

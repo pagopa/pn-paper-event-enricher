@@ -11,9 +11,6 @@ import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -29,7 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.*;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.ERROR_CODE_INVALID_REQUESTID;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.FAILED_TO_READ_FILE;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 
 @Slf4j
@@ -78,6 +76,8 @@ public class PaperEventEnricherUtils {
 
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveUri, requestId, registeredLetterCode));
+        con020EnrichedEntity.setProductType(payload.getAnalogMail().getProductType());
+        con020EnrichedEntity.setStatusDescription(payload.getAnalogMail().getStatusDescription());
         con020EnrichedEntity.setSortKey(SORT_KEY);
         con020EnrichedEntity.setEntityName(ENRICHED_ENTITY_NAME);
         con020EnrichedEntity.setRecordCreationTime(now);
@@ -133,7 +133,7 @@ public class PaperEventEnricherUtils {
         }
     }
 
-    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status) {
+    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status, Integer counter) {
         Instant now = Instant.now();
         String taskId = System.getenv("ECS_AGENT_URI");
 
@@ -144,16 +144,20 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
+        con020ArchiveEntity.setFileNumber(counter);
 
         return con020ArchiveEntity;
     }
 
-    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String archiveFileKey, String requestId, String registeredLetterCode) {
+    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String archiveFileKey, String requestId, String registeredLetterCode) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
 
         Instant now = Instant.now();
 
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
+        con020EnrichedEntity.setPdfDocumentType(DOCUMENT_TYPE);
+        con020EnrichedEntity.setPdfSha256(sha256);
+        con020EnrichedEntity.setPdfDate(Instant.now());
         con020EnrichedEntity.setSortKey(SORT_KEY);
         con020EnrichedEntity.setEntityName(ENRICHED_ENTITY_NAME);
         con020EnrichedEntity.setRecordCreationTime(now);

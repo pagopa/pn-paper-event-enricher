@@ -1,6 +1,5 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
-import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;

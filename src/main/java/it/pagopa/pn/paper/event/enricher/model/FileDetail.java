@@ -1,20 +1,19 @@
 package it.pagopa.pn.paper.event.enricher.model;
 
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.InputStream;
 
-@Data
+@Builder
+@Getter
+@Setter
 public class FileDetail {
     private String requestId;
     private String registeredLetterCode;
     private String filename;
     private InputStream content;
     private String fileKey;
-
-    public FileDetail(String filename, InputStream content, String fileKey) {
-        this.filename = filename;
-        this.content = content;
-        this.fileKey = fileKey;
-    }
+    private String sha256;
 }

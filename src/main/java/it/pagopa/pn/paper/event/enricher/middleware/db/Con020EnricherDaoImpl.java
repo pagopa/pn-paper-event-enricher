@@ -63,10 +63,16 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         stringBuilder.append(COL_ENTITY_NAME).append(" = :").append(COL_ENTITY_NAME).append(", ");
         if (PDF.equals(updateType)) {
             stringBuilder.append(COL_METADATA_PRESENT).append(QUERY_IF_NOT_EXISTS).append(COL_METADATA_PRESENT).append(",:").append(COL_METADATA_PRESENT).append("), ");
-            stringBuilder.append(COL_PRINTED_PDF).append(" = :").append(COL_PRINTED_PDF);
+            stringBuilder.append(COL_PRINTED_PDF).append(" = :").append(COL_PRINTED_PDF).append(", ");
+            stringBuilder.append(COL_PDF_DATE).append(" = :").append(COL_PDF_DATE).append(", ");
+            stringBuilder.append(COL_PDF_SHA256).append(" = :").append(COL_PDF_SHA256).append(", ");
+            stringBuilder.append(COL_PDF_DOCUMENT_TYPE).append(" = :").append(COL_PDF_DOCUMENT_TYPE);
         } else if (METADATA.equals(updateType)) {
             stringBuilder.append(COL_METADATA_PRESENT).append(" = :").append(COL_METADATA_PRESENT).append(", ");
-            stringBuilder.append(COL_METADATA).append(" = :").append(COL_METADATA);
+            stringBuilder.append(COL_METADATA).append(" = :").append(COL_METADATA).append(", ");
+            stringBuilder.append(COL_STATUS_DESCRIPTION).append(" = :").append(COL_STATUS_DESCRIPTION).append(", ");
+            stringBuilder.append(COL_PRODUCT_TYPE).append(" = :").append(COL_PRODUCT_TYPE);
+
         }
         return stringBuilder.toString();
     }
@@ -89,9 +95,14 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         if (PDF.equals(updateType)) {
             attributeValueMap.put(":" + COL_METADATA_PRESENT, AttributeValue.builder().bool(false).build());
             attributeValueMap.put(":" + COL_PRINTED_PDF, AttributeValue.builder().s(entity.getPrintedPdf()).build());
+            attributeValueMap.put(":" + COL_PDF_DATE, AttributeValue.builder().s(entity.getPdfDate().toString()).build());
+            attributeValueMap.put(":" + COL_PDF_SHA256, AttributeValue.builder().s(entity.getPdfSha256()).build());
+            attributeValueMap.put(":" + COL_PDF_DOCUMENT_TYPE, AttributeValue.builder().s(entity.getPdfDocumentType()).build());
         } else if (METADATA.equals(updateType)) {
             attributeValueMap.put(":" + COL_METADATA_PRESENT, AttributeValue.builder().bool(true).build());
             attributeValueMap.put(":" + COL_METADATA, AttributeValue.builder().m(constructMetadataAttributeValuesMap(entity.getMetadata())).build());
+            attributeValueMap.put(":" + COL_STATUS_DESCRIPTION, AttributeValue.builder().s(entity.getStatusDescription()).build());
+            attributeValueMap.put(":" + COL_PRODUCT_TYPE, AttributeValue.builder().s(entity.getProductType()).build());
         }
 
         return attributeValueMap;

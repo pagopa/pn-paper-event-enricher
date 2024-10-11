@@ -3,11 +3,7 @@ package it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.saf
 import io.netty.handler.timeout.TimeoutException;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.generated.openapi.msclient.safestorage.model.FileCreationResponse;
-import it.pagopa.pn.paper.event.enricher.model.ByteObject;
-import it.pagopa.pn.paper.event.enricher.model.FileTypeEnum;
-import it.pagopa.pn.paper.event.enricher.service.FileService;
 import lombok.CustomLog;
-import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpMethod;
@@ -22,20 +18,13 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import javax.net.ssl.SSLHandshakeException;
-import java.io.File;
 import java.io.IOException;
-import java.io.PipedOutputStream;
 import java.net.*;
-import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-
-import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.SEVENZIP;
-import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.ZIP;
 
 @Component
 @CustomLog
@@ -85,19 +74,21 @@ public class UploadDownloadClient {
                                 .doOnError(e -> log.error("Error during file writing"))
                                 .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
                     })
-                    .doOnComplete(() -> {
-                        try {
-                            channel.close();
-                            log.info("Download and file writing completed successfully");
-                        } catch (IOException e) {
-                            log.error("Error closing channel", e);
-                        }
-                    })
+                    .doOnComplete(() -> closeWritableByteChannel(channel))
                     .then();
 
         } catch (URISyntaxException | IOException ex) {
             log.error("error in URI ", ex);
             return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
+        }
+    }
+
+    public void closeWritableByteChannel(WritableByteChannel channel) {
+        try {
+            channel.close();
+            log.info("Download and file writing completed successfully");
+        } catch (IOException e) {
+            log.error("Error closing channel", e);
         }
     }
 

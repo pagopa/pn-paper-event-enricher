@@ -2,6 +2,7 @@ package it.pagopa.pn.paper.event.enricher.service;
 
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
+import it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.safestorage.UploadDownloadClient;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.FileTypeEnum;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
@@ -12,13 +13,21 @@ import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,45 +43,39 @@ import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.pa
 public class FileService {
 
     private final SafeStorageService safeStorageService;
+    private final UploadDownloadClient uploadDownloadClient;
     private final PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
     private static final byte[] ZIP_SIGNATURE = new byte[]{0x50, 0x4B, 0x03, 0x04};
     private static final byte[] SEVEN_ZIP_SIGNATURE = new byte[]{0x37, 0x7A, (byte) 0xBC, (byte) 0xAF, 0x27, 0x1C};
 
-    //TODO: cercare di unificare i vari metodi
     public Mono<Path> extractFileFromBin(Path path) {
-        Path newFile;
         FileTypeEnum fileTypeEnum = retrieveFileType(path);
         if (ZIP.equals(fileTypeEnum)) {
-            newFile = extractZipFileFromBin(path);
+            return extractZipFileFromBin(path);
         } else if (SEVENZIP.equals(fileTypeEnum)) {
-            newFile = extractSevenZipFileFromBin(path);
+            return extractSevenZipFileFromBin(path);
         } else {
             throw new PaperEventEnricherException("Unsupported file type", 500, "Unsupported file type");
         }
-        return Mono.just(newFile);
     }
 
-    public Path extractZipFileFromBin(Path path) {
+    public Mono<Path> extractZipFileFromBin(Path path) {
         try {
-            Path newFile = createTmpFile();
             ZipFile zipFile = ZipFile.builder().setFile(path.toFile()).get();
             ZipArchiveEntry zipArchiveEntry = zipFile.getEntries().nextElement();
             InputStream inputStream = findSignedData(zipFile.getInputStream(zipArchiveEntry));
-            writeInputStreamToFile(inputStream, newFile.toString());
-            return newFile;
+            return writeInputStreamToFile(inputStream, zipArchiveEntry.getName(), ZIP.getValue());
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, e.getCause().toString());
         }
     }
 
-    private Path extractSevenZipFileFromBin(Path path) {
+    private Mono<Path> extractSevenZipFileFromBin(Path path) {
         try {
-            Path newFile = createTmpFile();
             SevenZFile sevenZFile = SevenZFile.builder().setFile(path.toFile()).get();
             SevenZArchiveEntry sevenZArchiveEntry = sevenZFile.getEntries().iterator().next();
             InputStream inputStream = findSignedData(sevenZFile.getInputStream(sevenZArchiveEntry));
-            writeInputStreamToFile(inputStream, newFile.toString());
-            return newFile;
+            return writeInputStreamToFile(inputStream, sevenZArchiveEntry.getName(), SEVENZIP.getValue());
         } catch (IOException e) {
             throw new PaperEventEnricherException("Unable to write on tmp file", 500, e.getMessage());
         }
@@ -107,6 +110,7 @@ public class FileService {
                         throw new RuntimeException(e);
                     }
                 }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
                 .doOnNext(s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()));
     }
 
@@ -120,28 +124,68 @@ public class FileService {
                         throw new RuntimeException(e);
                     }
                 }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
                 .doOnNext(s -> log.info("Uploaded files count={}", uploadedFileCounter.incrementAndGet()));
+    }
+
+    private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name) {
+        if (name.endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
+            indexDataMap.putAll(parseBol(getContent(zipInputStream, name)));
+            log.info("Parsed bol file: [{}] from archive and enriched indexDataMap with {} entry", name, indexDataMap.size());
+            return Mono.just(FileDetail.builder().filename(name).build());
+        } else if (name.endsWith(PDF.getValue())) {
+            byte[] content = getContent(zipInputStream, name);
+            log.info("pdf: {} extrated with content lenght: {}", name, content.length);
+            String sha256 = Sha256Handler.computeSha256(content);
+            return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256)
+                    .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());
+        } else {
+            return Mono.just(FileDetail.builder().filename(name).build());
+        }
+    }
+
+    public Flux<Void> downloadFile(String archiveFileKey, Path file) {
+        return safeStorageService.callSafeStorageGetFile(archiveFileKey)
+                .flatMapMany(url -> uploadDownloadClient.downloadContent(url, file));
+    }
+
+    public Mono<Path> writeInputStreamToFile(InputStream inputStream, String prefix, String suffix) throws IOException {
+        Path newFile = createTmpFile(prefix, suffix);
+        WritableByteChannel channel = FileChannel.open(newFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        int bufferSize = 4096;
+        DefaultDataBufferFactory bufferFactory = new DefaultDataBufferFactory();
+        return DataBufferUtils.readInputStream(() -> inputStream, bufferFactory, bufferSize)
+                .flatMap(dataBuffer -> DataBufferUtils.write(Flux.just(dataBuffer), channel)
+                        .doOnError(e -> log.error("Error during file writing"))
+                        .doFinally(signalType -> DataBufferUtils.release(dataBuffer)))
+                .doOnComplete(() -> uploadDownloadClient.closeWritableByteChannel(channel))
+                .then(Mono.just(newFile));
+    }
+
+    public Path createTmpFile(String prefix, String suffix) {
+        try {
+            return Files.createTempFile(prefix, suffix);
+        } catch (IOException e) {
+            throw new PaperEventEnricherException("Unable to create tmp file", 500, e.getMessage());
+        }
     }
 
     private FileTypeEnum retrieveFileType(Path file) {
         try (FileInputStream fileInputStream = new FileInputStream(file.toFile());) {
-            return getFileType(fileInputStream.readNBytes(6));
+            byte[] header = fileInputStream.readNBytes(6);
+            if (startsWith(header, ZIP_SIGNATURE)) {
+                return ZIP;
+            } else if (startsWith(header, SEVEN_ZIP_SIGNATURE)) {
+                return SEVENZIP;
+            } else {
+                throw new PaperEventEnricherException("Unsupported file type", 400, "UNSUPPORTED_FILE_TYPE");
+            }
         } catch (IOException e) {
             throw new PaperEventEnricherException("Unable to read file", 500, e.getMessage());
         }
     }
 
-    private FileTypeEnum getFileType(byte[] file) {
-        if (startsWith(file, ZIP_SIGNATURE)) {
-            return ZIP;
-        } else if (startsWith(file, SEVEN_ZIP_SIGNATURE)) {
-            return SEVENZIP;
-        } else {
-            throw new PaperEventEnricherException("Unsupported file type", 400, "UNSUPPORTED_FILE_TYPE");
-        }
-    }
-
-    private static boolean startsWith(byte[] file, byte[] signature) {
+    private boolean startsWith(byte[] file, byte[] signature) {
         if (file.length < 4) {
             throw new PaperEventEnricherException("File is too short", 400, "FILE_TOO_SHORT");
         }
@@ -153,41 +197,13 @@ public class FileService {
         return true;
     }
 
-    public static void writeInputStreamToFile(InputStream inputStream, String filePath) throws IOException {
-        //TODO: OTTIMIZZARE LA SCRITTURA SUL SECONDO FILE
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-
-        try (OutputStream outputStream = new FileOutputStream(filePath)) {
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-        }
-    }
-
-    public Path createTmpFile() {
-        //TODO: USE CONSTANT
+    public void deleteFileTmp(Path path) {
+        String fileName = path.getFileName().toString();
         try {
-            return Files.createTempFile("tmp", ".bin");
+            Files.deleteIfExists(path);
         } catch (IOException e) {
-            throw new PaperEventEnricherException("Unable to create tmp file", 500, e.getMessage());
+            throw new RuntimeException(e);
         }
-    }
-
-    private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name) {
-        FileDetail fileDetail;
-        if (name.endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
-            indexDataMap.putAll(parseBol(getContent(zipInputStream, name)));
-            log.info("Parsed bol file: [{}] from archive and enriched indexDataMap with {} entry", name, indexDataMap.size());
-            fileDetail = new FileDetail(name, null, null);
-        } else if (name.endsWith(PDF.getValue())) {
-            byte[] content = getContent(zipInputStream, name);
-            log.info("pdf: {} extrated with content lenght: {}", name, content.length);
-            return safeStorageService.callSafeStorageCreateFileAndUpload(content, Sha256Handler.computeSha256(content))
-                    .map(fileKey -> new FileDetail(name, null, fileKey));
-        } else {
-            fileDetail = new FileDetail(name, null, null);
-        }
-        return Mono.just(fileDetail);
+        log.info("File {} deleted", fileName);
     }
 }
