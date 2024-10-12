@@ -4,7 +4,6 @@ import it.pagopa.pn.paper.event.enricher.config.BaseTest;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -60,14 +59,14 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
 
     @Test
     void updateMetadata_testOK() {
-        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
-        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updateMetadata(con020ArchiveEntity)).block();
+        CON020EnrichedEntity con020EnrichedEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
+        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updateMetadata(con020EnrichedEntity)).block();
     }
 
     @Test
     void updatePrintedPdf_testOK() {
-        CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
-        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updatePrintedPdf(con020ArchiveEntity)).block();
+        CON020EnrichedEntity con020EnrichedEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
+        Assertions.assertDoesNotThrow(() -> con020EnricherDao.updatePrintedPdf(con020EnrichedEntity)).block();
 
     }
 }

@@ -4,19 +4,13 @@ import it.pagopa.pn.paper.event.enricher.config.BaseTest;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@ExtendWith(SpringExtension.class)
-@TestPropertySource("classpath:application-test.properties")
 class Con020ArchiveDaoIT extends BaseTest.WithLocalStack {
 
     @Autowired
@@ -57,9 +51,6 @@ class Con020ArchiveDaoIT extends BaseTest.WithLocalStack {
         String hashKey = UUID.randomUUID().toString();
 
         CON020ArchiveEntity con020ArchiveEntity = createArchiveEntity(hashKey);
-
-        con020ArchiveDao.putIfAbsent(con020ArchiveEntity).block();
-
         con020ArchiveEntity.setArchiveStatus("PROCESSING");
         con020ArchiveEntity.setHashKey(UUID.randomUUID().toString());
         con020ArchiveEntity.setArchiveFileKey("test_ko");

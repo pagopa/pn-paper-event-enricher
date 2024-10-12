@@ -39,11 +39,11 @@ public class PaperEventEnricherService {
 
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
-        return createArchiveEntity(payload.getAnalogMail())
+        return Mono.just(createArchiveEntity(payload.getAnalogMail()))
                 .flatMap(con020ArchiveEntity -> con020ArchiveDao.putIfAbsent(con020ArchiveEntity)
                         .doOnError(throwable -> log.warn("Error while creating archive entity: {}", throwable.getMessage()))
                         .onErrorReturn(PaperEventEnricherException.class, con020ArchiveEntity))
-                .flatMap(con020ArchiveEntity -> createEnricherEntity(payload))
+                .map(con020ArchiveEntity -> createEnricherEntityForMetadata(payload))
                 .flatMap(con020EnricherDao::updateMetadata)
                 .then()
                 .doOnError(throwable -> log.error("Unexpected error while creating entities: {}", throwable.getMessage(), throwable))
@@ -68,7 +68,7 @@ public class PaperEventEnricherService {
     }
 
     private Flux<String> extractUploadAndUpdates(Path path, Map<String, IndexData> indexDataMap, String archiveFileKey, AtomicInteger uploadedFileCounter) {
-        return  fileService.extractFileFromArchive(path, indexDataMap, uploadedFileCounter)
+        return fileService.extractFileFromArchive(path, indexDataMap, uploadedFileCounter)
                 .collectList()
                 .doFinally(fileDetails -> fileService.deleteFileTmp(path))
                 .flatMapMany(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey));
@@ -84,7 +84,7 @@ public class PaperEventEnricherService {
     private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
         if (Objects.nonNull(indexData)) {
-            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(),fileDetail.getSha256(), archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
+            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), fileDetail.getSha256(), archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
             return con020EnricherDao.updatePrintedPdf(con020EnrichedEntity)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable))
                     .map(CON020BaseEntity::getHashKey);

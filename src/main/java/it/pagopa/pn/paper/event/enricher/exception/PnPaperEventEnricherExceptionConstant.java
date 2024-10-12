@@ -11,7 +11,6 @@ public class PnPaperEventEnricherExceptionConstant {
     public static final String FAILED_TO_READ_FILE = "FAILED_TO_READ_FILE";
     public static final String ERROR_MESSAGE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED = "eventType not present, cannot start scheduled action.";
     public static final String UNABLE_TO_CREATE_TMP_FILE = "Unable to create tmp file";
-    public static final String UNABLE_TO_READ_FILE = "Unable to read file";
     public static final String FILE_IS_TOO_SHORT = "File is too short";
     public static final String UNSUPPORTED_FILE_TYPE = "Unsupported file type";
     public static final String UNABLE_TO_WRITE_ON_TMP_FILE = "Unable to write on tmp file";

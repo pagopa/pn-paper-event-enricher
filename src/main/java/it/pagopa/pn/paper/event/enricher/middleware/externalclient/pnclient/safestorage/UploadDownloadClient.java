@@ -25,6 +25,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.Objects;
 
 @Component
 @CustomLog
@@ -32,7 +33,7 @@ public class UploadDownloadClient {
 
     private static final int RETRY_MAX_ATTEMPTS_PRESIGNED_URL = 3;
 
-    private final WebClient webClient;
+    protected WebClient webClient;
 
     public UploadDownloadClient() {
         this.webClient = WebClient.builder()
@@ -54,7 +55,7 @@ public class UploadDownloadClient {
                 .toBodilessEntity()
                 .thenReturn(fileCreationResponse.getKey())
                 .onErrorResume(ee -> {
-                    log.error("Normalize Address - uploadContent Exception uploading file", ee);
+                    log.error("Error during upload file", ee);
                     return Mono.error(new PaperEventEnricherException(ee.getMessage(), 500, "UPLOAD_ERROR"));
                 });
     }
@@ -85,7 +86,8 @@ public class UploadDownloadClient {
 
     public void closeWritableByteChannel(WritableByteChannel channel) {
         try {
-            channel.close();
+            if(Objects.nonNull(channel) && channel.isOpen())
+                channel.close();
             log.info("Download and file writing completed successfully");
         } catch (IOException e) {
             log.error("Error closing channel", e);

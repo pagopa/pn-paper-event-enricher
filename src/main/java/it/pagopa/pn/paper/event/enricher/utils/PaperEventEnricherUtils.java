@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,14 +34,14 @@ import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 public class PaperEventEnricherUtils {
 
 
-    public static Mono<CON020ArchiveEntity> createArchiveEntity(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
+    public static CON020ArchiveEntity createArchiveEntity(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
         CON020ArchiveEntity con020ArchiveEntity = new CON020ArchiveEntity();
 
         Instant now = Instant.now();
         String taskId = System.getenv(TASK_ID_ENV);
 
         if (!checkIfAttachmentIsPresent(analogMailDetail)) {
-            return Mono.error(new PaperEventEnricherException("Archive attachment uri not found.", 400, "ARCHIVE_ATTACHMENT_NOT_FOUND_IN_EVENT"));
+            throw new PaperEventEnricherException("Archive attachment uri not found.", 400, "ARCHIVE_ATTACHMENT_NOT_FOUND_IN_EVENT");
         }
 
         String archiveUri = analogMailDetail.getAttachments().get(0).getUri();
@@ -57,7 +56,7 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
 
-        return Mono.just(con020ArchiveEntity);
+        return con020ArchiveEntity;
     }
 
     private static boolean checkIfAttachmentIsPresent(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
@@ -67,7 +66,7 @@ public class PaperEventEnricherUtils {
                 StringUtils.hasText(analogMailDetail.getAttachments().get(0).getUri());
     }
 
-    public static Mono<CON020EnrichedEntity> createEnricherEntity(PaperEventEnricherInputEvent.Payload payload) {
+    public static CON020EnrichedEntity createEnricherEntityForMetadata(PaperEventEnricherInputEvent.Payload payload) {
         Instant now = Instant.now();
 
         String archiveUri = payload.getAnalogMail().getAttachments().get(0).getUri();
@@ -88,7 +87,7 @@ public class PaperEventEnricherUtils {
         CON020EnrichedEntityMetadata metadata = getCon020EnrichedEntityMetadata(payload, requestId, archiveUri);
         con020EnrichedEntity.setMetadata(metadata);
 
-        return Mono.just(con020EnrichedEntity);
+        return con020EnrichedEntity;
     }
 
     private static CON020EnrichedEntityMetadata getCon020EnrichedEntityMetadata(PaperEventEnricherInputEvent.Payload payload, String requestId, String archiveUri) {
@@ -169,9 +168,9 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] getContent(InputStream zipInputStream, String fileName) {
+    public static byte[] getContent(InputStream in, String fileName) {
         try {
-            return zipInputStream.readAllBytes();
+            return in.readAllBytes();
         } catch (IOException e) {
             log.error("Failed to read file [{}]", fileName, e);
             throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);

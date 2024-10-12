@@ -55,12 +55,14 @@ public class FileService {
     private static final byte[] SEVEN_ZIP_SIGNATURE = new byte[]{0x37, 0x7A, (byte) 0xBC, (byte) 0xAF, 0x27, 0x1C};
 
     public Mono<Path> extractFileFromBin(Path path) {
-        FileTypeEnum fileTypeEnum = retrieveFileType(path);
-        if (ZIP.equals(fileTypeEnum)) {
-            return extractZipFileFromBin(path);
-        } else {
-            return extractSevenZipFileFromBin(path);
-        }
+        return retrieveFileType(path)
+                .flatMap(fileTypeEnum -> {
+                    if (ZIP.equals(fileTypeEnum)) {
+                        return extractZipFileFromBin(path);
+                    } else {
+                        return extractSevenZipFileFromBin(path);
+                    }
+                });
     }
 
     public Mono<Path> extractZipFileFromBin(Path path) {
@@ -90,50 +92,55 @@ public class FileService {
     }
 
     public Flux<FileDetail> extractFileFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger counter) {
-        FileTypeEnum fileTypeEnum = retrieveFileType(path);
-        if (ZIP.equals(fileTypeEnum)) {
-            try {
-                return extractZipFilesFromArchive(ZipFile.builder().setFile(path.toFile()).get(), indexDataMap, counter);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else if (SEVENZIP.equals(fileTypeEnum)) {
-            try {
-                return extract7ZipFilesFromArchive(SevenZFile.builder().setFile(path.toFile()).get(), indexDataMap, counter);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 500, UNSUPPORTED_FILE_TYPE);
+        return retrieveFileType(path)
+                .flatMapMany(fileTypeEnum -> {
+                    if (ZIP.equals(fileTypeEnum)) {
+                        return extractZipFilesFromArchive(path, indexDataMap, counter);
+                    } else if (SEVENZIP.equals(fileTypeEnum)) {
+                        return extract7ZipFilesFromArchive(path, indexDataMap, counter);
+                    } else {
+                        return Flux.error(new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 500, UNSUPPORTED_FILE_TYPE));
+                    }
+                });
+
+    }
+
+    public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
+        try {
+            ZipFile zipFile = ZipFile.builder().setFile(path.toFile()).get();
+            Iterable<ZipArchiveEntry> iterable = () -> zipFile.getEntries().asIterator();
+            return Flux.fromIterable(iterable)
+                    .flatMap(zipArchiveEntry -> {
+                        try {
+                            return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
+                        } catch (IOException e) {
+                            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+                        }
+                    }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                    .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
+                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
+        } catch (IOException e) {
+            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
         }
     }
 
-    public Flux<FileDetail> extractZipFilesFromArchive(ZipFile zipInputStream, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
-        Iterable<ZipArchiveEntry> iterable = () -> zipInputStream.getEntries().asIterator();
-        return Flux.fromIterable(iterable)
-                .flatMap(zipArchiveEntry -> {
-                    try {
-                        return getFileDetail(zipInputStream.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
-                .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
-    }
-
-    public Flux<FileDetail> extract7ZipFilesFromArchive(SevenZFile sevenZFile, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
-        Iterable<SevenZArchiveEntry> iterable = () -> sevenZFile.getEntries().iterator();
-        return Flux.fromIterable(iterable)
-                .flatMap(zipArchiveEntry -> {
-                    try {
-                        return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
-                .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
+    public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
+        try {
+            SevenZFile sevenZFile = SevenZFile.builder().setFile(path.toFile()).get();
+            Iterable<SevenZArchiveEntry> iterable = () -> sevenZFile.getEntries().iterator();
+            return Flux.fromIterable(iterable)
+                    .flatMap(zipArchiveEntry -> {
+                        try {
+                            return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
+                        } catch (IOException e) {
+                            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+                        }
+                    }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                    .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
+                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
+        } catch (IOException e) {
+            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+        }
     }
 
     private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name) {
@@ -181,18 +188,18 @@ public class FileService {
         }
     }
 
-    private FileTypeEnum retrieveFileType(Path file) {
+    private Mono<FileTypeEnum> retrieveFileType(Path file) {
         try (FileInputStream fileInputStream = new FileInputStream(file.toFile())) {
             byte[] header = fileInputStream.readNBytes(6);
             if (startsWith(header, ZIP_SIGNATURE)) {
-                return ZIP;
+                return Mono.just(ZIP);
             } else if (startsWith(header, SEVEN_ZIP_SIGNATURE)) {
-                return SEVENZIP;
+                return Mono.just(SEVENZIP);
             } else {
-                throw new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 400, UNSUPPORTED_FILE_TYPE);
+                return Mono.error(new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 400, UNSUPPORTED_FILE_TYPE));
             }
         } catch (IOException e) {
-            throw new PaperEventEnricherException(e.getMessage(), 500, FAILED_TO_READ_FILE);
+            return Mono.error(new PaperEventEnricherException(e.getMessage(), 500, FAILED_TO_READ_FILE));
         }
     }
 
