@@ -64,7 +64,7 @@ class FileServiceTest {
 
     @Test
     void extractFileFromBinWithSevenZipFile() {
-        Path path = Paths.get("src/test/resources/attachment_example_completed.7z");
+        Path path = Paths.get("src/test/resources/attachment_example_completed2.7z");
 
         Mono<Path> result = fileService.extractFileFromBin(path).doOnNext(newFile -> {
             try {
