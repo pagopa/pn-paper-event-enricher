@@ -107,7 +107,9 @@ class Con020EnricherDaoTest {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
         CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updatePrintedPdf(con020ArchiveEntity)).verifyComplete();
+        StepVerifier.create(con020EnricherDao.updatePrintedPdf(con020ArchiveEntity))
+                .expectNext(con020ArchiveEntity)
+                .verifyComplete();
 
     }
 }

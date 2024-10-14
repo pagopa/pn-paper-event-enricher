@@ -22,5 +22,7 @@ public class PnPaperEventEnricherExceptionConstant {
     public static final String ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE = "ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE";
     public static final String ERROR_WHILE_PARSING_P7M = "ERROR_WHILE_PARSING_P7M";
 
+    public static final String INVALID_COUNTER_VALUE = "INVALID_COUNTER_VALUE";
+
 
 }

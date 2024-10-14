@@ -61,7 +61,7 @@ public class UploadDownloadClient {
     }
 
     public Mono<Void> downloadContent(String downloadUrl, Path path) {
-        log.info("start to download file to: {}", downloadUrl);
+        log.info("start to download file from: {}", downloadUrl);
         try {
             WritableByteChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             return webClient
@@ -70,7 +70,7 @@ public class UploadDownloadClient {
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
                     .flatMap(dataBuffer -> {
-                        log.info("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
+                        log.debug("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
                         return DataBufferUtils.write(Flux.just(dataBuffer), channel)
                                 .doOnError(e -> log.error("Error during file writing"))
                                 .doFinally(signalType -> DataBufferUtils.release(dataBuffer));

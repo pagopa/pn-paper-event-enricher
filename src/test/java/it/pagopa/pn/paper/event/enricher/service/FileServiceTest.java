@@ -4,6 +4,7 @@ package it.pagopa.pn.paper.event.enricher.service;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.safestorage.UploadDownloadClient;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import org.junit.jupiter.api.Assertions;
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -72,7 +74,7 @@ class FileServiceTest {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        });;
+        });
 
         StepVerifier.create(result)
                 .expectNextCount(1)
@@ -88,13 +90,13 @@ class FileServiceTest {
 
         StepVerifier.create(result)
                 .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
-                        throwable.getMessage().equals("Unsupported file type"));
+                        Objects.equals(throwable.getMessage(), "Unsupported file type"));
     }
 
     @Test
     void extractFileFromArchiveWithZipFile() {
         Map<String, IndexData> indexDataMap = new HashMap<>();
-        AtomicInteger counter = new AtomicInteger();
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.zip");
         when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
 
@@ -106,7 +108,7 @@ class FileServiceTest {
     @Test
     void extractFileFromArchiveWithSevenZipFile() {
         Map<String, IndexData> indexDataMap = new HashMap<>();
-        AtomicInteger counter = new AtomicInteger();
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.7z");
         when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
 

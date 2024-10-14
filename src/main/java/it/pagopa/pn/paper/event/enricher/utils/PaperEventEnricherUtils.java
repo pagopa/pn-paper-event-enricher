@@ -7,6 +7,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEn
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
 import it.pagopa.pn.paper.event.enricher.model.CON020ArchiveStatusEnum;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -132,7 +133,7 @@ public class PaperEventEnricherUtils {
         }
     }
 
-    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status, Integer counter) {
+    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status, FileCounter counter) {
         Instant now = Instant.now();
         String taskId = System.getenv("ECS_AGENT_URI");
 
@@ -143,7 +144,8 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
-        con020ArchiveEntity.setFileNumber(counter);
+        con020ArchiveEntity.setTotalFiles(counter.getTotalFiles() - 1);
+        con020ArchiveEntity.setProcessedFiles(counter.getUpdatedItems().get());
 
         return con020ArchiveEntity;
     }
@@ -183,7 +185,7 @@ public class PaperEventEnricherUtils {
         for (String line : bolString.split("\n")) {
             if (!line.isEmpty()) {
                 String[] cells = line.split("\\|");
-                if(cells.length > 6) { //TODO: DECIDERE CON VINCENZO
+                if(cells.length > 6) {
                     String p7mEntryName = cells[0];
                     String requestId = cells[3];
                     String registeredLetterCode = cells[6];

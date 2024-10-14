@@ -5,6 +5,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEnt
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
 import static it.pagopa.pn.paper.event.enricher.model.CON020ArchiveStatusEnum.PROCESSING;
@@ -105,8 +107,9 @@ class PaperEventEnricherUtilsTest {
     @Test
     void createArchiveEntityForStatusUpdate() {
         PaperArchiveEvent.Payload payload = PaperArchiveEvent.Payload.builder().archiveFileKey("test").build();
+        FileCounter fileCounter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 1);
 
-        CON020ArchiveEntity result = PaperEventEnricherUtils.createArchiveEntityForStatusUpdate(payload, PROCESSING.name(), 1);
+        CON020ArchiveEntity result = PaperEventEnricherUtils.createArchiveEntityForStatusUpdate(payload, PROCESSING.name(), fileCounter);
         Assertions.assertNotNull(result);
         Assertions.assertEquals("CON020AR~test", result.getHashKey());
     }

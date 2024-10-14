@@ -102,6 +102,12 @@ Parameters:
   SafeStorageUploadMaxConcurrentRequest:
     Type: Number
     Description: 'Max concurrent request for safe storage upload'
+    Default: 10
+
+  UpdateItemMaxConcurrentRequest:
+    Type: Number
+    Description: 'Max concurrent request for update item'
+    Default: 50
 
   EnrichedEventsQueueArn:
     Type: String
@@ -243,6 +249,7 @@ Resources:
         ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
         ContainerEnvEntry9: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'
         ContainerEnvEntry10: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEREADTIMEOUTMILLIS=${SafeStorageConnectionReadMillis}'
+        ContainerEnvEntry11: !Sub 'PN_PAPEREVENTENRICHER_UPDATEITEMMAXCONCURRENTREQUEST=${UpdateItemMaxConcurrentRequest}'
         MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds

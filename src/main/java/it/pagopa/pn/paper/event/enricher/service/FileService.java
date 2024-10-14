@@ -3,6 +3,7 @@ package it.pagopa.pn.paper.event.enricher.service;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.safestorage.UploadDownloadClient;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.FileTypeEnum;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
@@ -28,9 +29,10 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.*;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
@@ -91,13 +93,13 @@ public class FileService {
         }
     }
 
-    public Flux<FileDetail> extractFileFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger counter) {
+    public Flux<FileDetail> extractFileFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
         return retrieveFileType(path)
                 .flatMapMany(fileTypeEnum -> {
                     if (ZIP.equals(fileTypeEnum)) {
-                        return extractZipFilesFromArchive(path, indexDataMap, counter);
+                        return extractZipFilesFromArchive(path, indexDataMap, fileCounter);
                     } else if (SEVENZIP.equals(fileTypeEnum)) {
-                        return extract7ZipFilesFromArchive(path, indexDataMap, counter);
+                        return extract7ZipFilesFromArchive(path, indexDataMap, fileCounter);
                     } else {
                         return Flux.error(new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 500, UNSUPPORTED_FILE_TYPE));
                     }
@@ -105,11 +107,12 @@ public class FileService {
 
     }
 
-    public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
+    public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
         try {
             ZipFile zipFile = ZipFile.builder().setFile(path.toFile()).get();
-            Iterable<ZipArchiveEntry> iterable = () -> zipFile.getEntries().asIterator();
-            return Flux.fromIterable(iterable)
+            List<ZipArchiveEntry> entries = Collections.list(zipFile.getEntries());
+            fileCounter.setTotalFiles(entries.size());
+            return Flux.fromIterable(entries)
                     .flatMap(zipArchiveEntry -> {
                         try {
                             return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
@@ -118,17 +121,18 @@ public class FileService {
                         }
                     }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
                     .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
+                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet()));
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
         }
     }
 
-    public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, AtomicInteger uploadedFileCounter) {
+    public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
         try {
             SevenZFile sevenZFile = SevenZFile.builder().setFile(path.toFile()).get();
-            Iterable<SevenZArchiveEntry> iterable = () -> sevenZFile.getEntries().iterator();
-            return Flux.fromIterable(iterable)
+            List<SevenZArchiveEntry> entries = (List<SevenZArchiveEntry>) sevenZFile.getEntries();
+            fileCounter.setTotalFiles(entries.size());
+            return Flux.fromIterable(entries)
                     .flatMap(zipArchiveEntry -> {
                         try {
                             return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
@@ -137,7 +141,7 @@ public class FileService {
                         }
                     }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
                     .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
+                    .doOnNext(s -> log.debug(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet()));
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
         }
@@ -150,7 +154,7 @@ public class FileService {
             return Mono.just(FileDetail.builder().filename(name).build());
         } else if (name.endsWith(PDF.getValue())) {
             byte[] content = getContent(zipInputStream, name);
-            log.info(PDF_EXTRATED, name, content.length);
+            log.debug(PDF_EXTRATED, name, content.length);
             String sha256 = Sha256Handler.computeSha256(content);
             return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256)
                     .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());

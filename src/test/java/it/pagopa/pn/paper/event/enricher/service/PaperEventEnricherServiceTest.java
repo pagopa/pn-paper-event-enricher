@@ -1,5 +1,6 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020ArchiveDao;
 import it.pagopa.pn.paper.event.enricher.middleware.db.Con020EnricherDao;
@@ -7,6 +8,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEnt
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,9 @@ class PaperEventEnricherServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService);
+        PnPaperEventEnricherConfig config = new PnPaperEventEnricherConfig();
+        config.setUpdateItemMaxConcurrentRequest(10);
+        paperEventEnricherService = new PaperEventEnricherService(con020ArchiveDao, con020EnricherDao, fileService, config);
     }
 
     @Test
@@ -159,6 +163,8 @@ class PaperEventEnricherServiceTest {
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
         FileDetail fileDetail = FileDetail.builder().fileKey("fileKey").filename("filename.pdf").build();
         Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any())).thenReturn(Flux.just(fileDetail));
+        doNothing().when(fileService).deleteFileTmp(any());
+        Mockito.when(con020EnricherDao.updatePrintedPdf(any())).thenReturn(Mono.just(new CON020EnrichedEntity()));
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);
@@ -215,7 +221,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
         Mockito.when(fileService.downloadFile("archiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
-        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new AtomicInteger())).thenReturn(Flux.empty());
+        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0))).thenReturn(Flux.empty());
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.error(new RuntimeException("Update error")));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);
