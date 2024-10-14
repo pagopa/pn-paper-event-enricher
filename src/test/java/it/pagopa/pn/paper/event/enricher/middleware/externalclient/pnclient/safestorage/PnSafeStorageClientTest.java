@@ -16,7 +16,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import static org.mockito.ArgumentMatchers.eq;
+import java.util.Objects;
+
 import static org.mockito.Mockito.when;
 
 class PnSafeStorageClientTest {
@@ -39,7 +40,7 @@ class PnSafeStorageClientTest {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         FileCreationResponse fileCreationResponse = new FileCreationResponse();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileUploadApi.createFile(eq("cxId"), eq(PaperEventEnricherConstant.X_CHECKSUM), eq("checksum"), eq(fileCreationRequest)))
+        when(fileUploadApi.createFile("cxId", PaperEventEnricherConstant.X_CHECKSUM, "checksum", fileCreationRequest))
                 .thenReturn(Mono.just(fileCreationResponse));
 
         Mono<FileCreationResponse> result = pnSafeStorageClient.createFile(fileCreationRequest, "checksum");
@@ -53,14 +54,14 @@ class PnSafeStorageClientTest {
     void createFile_error() {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileUploadApi.createFile(eq("cxId"), eq(PaperEventEnricherConstant.X_CHECKSUM), eq("checksum"), eq(fileCreationRequest)))
+        when(fileUploadApi.createFile("cxId", PaperEventEnricherConstant.X_CHECKSUM, "checksum", fileCreationRequest))
                 .thenReturn(Mono.error(new WebClientResponseException(500, "Internal Server Error", null, null, null)));
 
         Mono<FileCreationResponse> result = pnSafeStorageClient.createFile(fileCreationRequest, "checksum");
 
         StepVerifier.create(result)
                 .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
-                        throwable.getMessage().equals("DOCUMENT_UPLOAD_ERROR"))
+                        Objects.equals(throwable.getMessage(), "DOCUMENT_UPLOAD_ERROR"))
                 .verify();
     }
 
@@ -68,7 +69,7 @@ class PnSafeStorageClientTest {
     void getFile_success() {
         FileDownloadResponse fileDownloadResponse = new FileDownloadResponse();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile(eq("fileKey"), eq("cxId"), eq(false)))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false))
                 .thenReturn(Mono.just(fileDownloadResponse));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("safestorage://fileKey");
@@ -81,21 +82,21 @@ class PnSafeStorageClientTest {
     @Test
     void getFile_notFound() {
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile(eq("fileKey"), eq("cxId"), eq(false)))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false))
                 .thenReturn(Mono.error(new WebClientResponseException(404, "Not Found", null, null, null)));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");
 
         StepVerifier.create(result)
                 .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
-                        throwable.getMessage().equals("DOCUMENT_UNAVAILABLE"))
+                        Objects.equals(throwable.getMessage(), "DOCUMENT_UNAVAILABLE"))
                 .verify();
     }
 
     @Test
     void getFile_otherError() {
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile(eq("fileKey"), eq("cxId"), eq(false)))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false))
                 .thenReturn(Mono.error(new WebClientResponseException(500, "Internal Server Error", null, null, null)));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");

@@ -118,6 +118,20 @@ class FileServiceTest {
     }
 
     @Test
+    void extractFileFromArchiveWithUnsupportedFile() {
+        Map<String, IndexData> indexDataMap = new HashMap<>();
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
+        Path path = Paths.get("src/test/resources/test.txt");
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
+
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        Objects.equals(throwable.getMessage(), "Unsupported file type"));
+    }
+
+    @Test
     void downloadFile() {
         String archiveFileKey = "validArchiveFileKey";
         Path file = mock(Path.class);

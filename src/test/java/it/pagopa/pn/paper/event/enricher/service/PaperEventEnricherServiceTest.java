@@ -215,8 +215,8 @@ class PaperEventEnricherServiceTest {
     void handlePaperEventEnricherEventWithUpdateError() {
         PaperArchiveEvent.Payload payload = mock(PaperArchiveEvent.Payload.class);
         Mockito.when(payload.getArchiveFileKey()).thenReturn("archiveFileKey");
-
         Path path = mock(Path.class);
+
         Mockito.when(fileService.createTmpFile("archiveFileKey", BIN.getValue())).thenReturn(path);
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
         Mockito.when(fileService.downloadFile("archiveFileKey", path)).thenReturn(Flux.empty());

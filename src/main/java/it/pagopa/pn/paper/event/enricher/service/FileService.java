@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -169,18 +170,32 @@ public class FileService {
     }
 
     public Mono<Path> writeInputStreamToFile(InputStream inputStream, Path newFile) {
+        WritableByteChannel channel = null;
         try {
-            WritableByteChannel channel = FileChannel.open(newFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            channel = FileChannel.open(newFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             int bufferSize = 4096;
             DefaultDataBufferFactory bufferFactory = new DefaultDataBufferFactory();
+            WritableByteChannel finalChannel = channel;
             return DataBufferUtils.readInputStream(() -> inputStream, bufferFactory, bufferSize)
-                    .flatMap(dataBuffer -> DataBufferUtils.write(Flux.just(dataBuffer), channel)
+                    .flatMap(dataBuffer -> DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
                             .doOnError(e -> log.error("Error during file writing: {}", e.getMessage()))
                             .doFinally(signalType -> DataBufferUtils.release(dataBuffer)))
-                    .doFinally(signal -> uploadDownloadClient.closeWritableByteChannel(channel))
+                    .doFinally(signal -> closeWritableByteChannel(finalChannel))
+                    .doOnError(throwable -> closeWritableByteChannel(finalChannel))
                     .then(Mono.just(newFile));
-        } catch (IOException e) {
+        } catch (Exception e) {
+            closeWritableByteChannel(channel);
             throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DURING_WRITE_FILE);
+        }
+    }
+
+    public void closeWritableByteChannel(WritableByteChannel channel) {
+        try {
+            if(Objects.nonNull(channel) && channel.isOpen())
+                channel.close();
+            log.info("Download and file writing completed successfully");
+        } catch (IOException e) {
+            log.error("Error closing channel", e);
         }
     }
 

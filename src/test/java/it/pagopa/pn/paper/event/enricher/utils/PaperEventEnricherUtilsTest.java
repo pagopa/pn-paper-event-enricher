@@ -44,11 +44,11 @@ class PaperEventEnricherUtilsTest {
     }
 
     @Test
-    void createEnricherEntityForMetadataWithValidInputs() {
+    void createEnricherEntityForMetadataWithValidInputsWithoutIunAndRecIndex() {
         PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail = PaperEventEnricherInputEvent.Payload.AnalogMailDetail
                 .builder()
                 .registeredLetterCode("registeredLetterCode")
-                .requestId("requestId.IUN_01.RECINDEX_01")
+                .requestId("requestId")
                 .attachments(List.of(PaperEventEnricherInputEvent.Payload.Attachment.builder().uri("uri").build())).build();
 
         PaperEventEnricherInputEvent.Payload payload = PaperEventEnricherInputEvent.Payload.builder()
@@ -57,7 +57,27 @@ class PaperEventEnricherUtilsTest {
         CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForMetadata(payload);
 
         assertNotNull(result);
-        assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity("uri", "requestId.IUN_01.RECINDEX_01", "registeredLetterCode"), result.getHashKey());
+        assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity("uri", "requestId", "registeredLetterCode"), result.getHashKey());
+        assertEquals(ENRICHED_ENTITY_NAME, result.getEntityName());
+        assertEquals(SORT_KEY, result.getSortKey());
+        assertTrue(result.getMetadataPresent());
+    }
+
+    @Test
+    void createEnricherEntityForMetadataWithValidInputs() {
+        PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail = PaperEventEnricherInputEvent.Payload.AnalogMailDetail
+                .builder()
+                .registeredLetterCode("registeredLetterCode")
+                .requestId("requestId.IUN_01.RECINDEX_01.TEST")
+                .attachments(List.of(PaperEventEnricherInputEvent.Payload.Attachment.builder().uri("uri").build())).build();
+
+        PaperEventEnricherInputEvent.Payload payload = PaperEventEnricherInputEvent.Payload.builder()
+                .analogMail(analogMailDetail).build();
+
+        CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForMetadata(payload);
+
+        assertNotNull(result);
+        assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity("uri", "requestId.IUN_01.RECINDEX_01.TEST", "registeredLetterCode"), result.getHashKey());
         assertEquals(ENRICHED_ENTITY_NAME, result.getEntityName());
         assertEquals(SORT_KEY, result.getSortKey());
         assertTrue(result.getMetadataPresent());
@@ -105,6 +125,14 @@ class PaperEventEnricherUtilsTest {
     }
 
     @Test
+    void parseBolWithMixedEntriesError() {
+        byte[] bolBytes = "entry1.pdf|data|data|".getBytes();
+        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
+
+        assertEquals(0, result.size());
+    }
+
+    @Test
     void createArchiveEntityForStatusUpdate() {
         PaperArchiveEvent.Payload payload = PaperArchiveEvent.Payload.builder().archiveFileKey("test").build();
         FileCounter fileCounter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 1);
@@ -125,6 +153,23 @@ class PaperEventEnricherUtilsTest {
     }
 
     @Test
+    void createEnricherEntityForMetadataWithValidInputsWithNullAnalogMailDetail() {
+        Assertions.assertThrows(PaperEventEnricherException.class, () -> PaperEventEnricherUtils.createArchiveEntity(null));
+    }
+
+    @Test
+    void createEnricherEntityForMetadataWithValidInputsWithNullUri() {
+        PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail = PaperEventEnricherInputEvent.Payload.AnalogMailDetail
+                .builder()
+                .registeredLetterCode("registeredLetterCode")
+                .requestId("requestId")
+                .attachments(List.of(PaperEventEnricherInputEvent.Payload.Attachment.builder().build())).build();
+
+        Assertions.assertThrows(PaperEventEnricherException.class, () -> PaperEventEnricherUtils.createArchiveEntity(analogMailDetail));
+
+    }
+
+    @Test
     void createArchiveEntityWithoutAttachment() {
         PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail = PaperEventEnricherInputEvent.Payload.AnalogMailDetail
                 .builder().attachments(Collections.emptyList()).build();
@@ -141,5 +186,11 @@ class PaperEventEnricherUtilsTest {
         byte[] result = PaperEventEnricherUtils.getContent(inputStream, "fileName");
 
         assertArrayEquals("test content".getBytes(), result);
+    }
+
+    @Test
+    void getContentWithValidInputStreamError() {
+
+        Assertions.assertThrows(PaperEventEnricherException.class, () -> PaperEventEnricherUtils.getContent(null, "fileName"));
     }
 }

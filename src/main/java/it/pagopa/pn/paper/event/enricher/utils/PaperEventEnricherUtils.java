@@ -173,7 +173,7 @@ public class PaperEventEnricherUtils {
     public static byte[] getContent(InputStream in, String fileName) {
         try {
             return in.readAllBytes();
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to read file [{}]", fileName, e);
             throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
         }

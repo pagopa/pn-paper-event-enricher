@@ -62,8 +62,10 @@ public class UploadDownloadClient {
 
     public Mono<Void> downloadContent(String downloadUrl, Path path) {
         log.info("start to download file from: {}", downloadUrl);
+        WritableByteChannel channel = null;
         try {
-            WritableByteChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            WritableByteChannel finalChannel = channel;
             return webClient
                     .get()
                     .uri(new URI(downloadUrl))
@@ -71,20 +73,22 @@ public class UploadDownloadClient {
                     .bodyToFlux(DataBuffer.class)
                     .flatMap(dataBuffer -> {
                         log.debug("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
-                        return DataBufferUtils.write(Flux.just(dataBuffer), channel)
+                        return DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
                                 .doOnError(e -> log.error("Error during file writing"))
                                 .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
                     })
-                    .doOnComplete(() -> closeWritableByteChannel(channel))
+                    .doOnComplete(() -> closeWritableByteChannel(finalChannel))
+                    .doOnError(throwable -> closeWritableByteChannel(finalChannel))
                     .then();
 
-        } catch (URISyntaxException | IOException ex) {
+        } catch (Exception ex) {
             log.error("error in URI ", ex);
+            closeWritableByteChannel(channel);
             return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
     }
 
-    public void closeWritableByteChannel(WritableByteChannel channel) {
+    protected void closeWritableByteChannel(WritableByteChannel channel) {
         try {
             if(Objects.nonNull(channel) && channel.isOpen())
                 channel.close();
@@ -112,7 +116,7 @@ public class UploadDownloadClient {
                 );
     }
 
-    private boolean isRetryableException(Throwable throwable) {
+    protected boolean isRetryableException(Throwable throwable) {
         boolean retryable = throwable instanceof TimeoutException ||
                 throwable instanceof SocketException ||
                 throwable instanceof SocketTimeoutException ||
