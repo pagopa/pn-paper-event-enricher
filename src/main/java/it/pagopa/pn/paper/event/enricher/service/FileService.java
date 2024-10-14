@@ -114,13 +114,13 @@ public class FileService {
                         try {
                             return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
                         } catch (IOException e) {
-                            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+                            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
                         }
                     }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
                     .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
                     .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
         } catch (IOException e) {
-            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
         }
     }
 
@@ -133,13 +133,13 @@ public class FileService {
                         try {
                             return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
                         } catch (IOException e) {
-                            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+                            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
                         }
                     }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
                     .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
                     .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, uploadedFileCounter.incrementAndGet()));
         } catch (IOException e) {
-            throw new PaperEventEnricherException(e.getMessage(), 500, "Error during file extraction from archive");
+            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
         }
     }
 
@@ -176,7 +176,7 @@ public class FileService {
                     .doFinally(signal -> uploadDownloadClient.closeWritableByteChannel(channel))
                     .then(Mono.just(newFile));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DURING_WRITE_FILE);
         }
     }
 
@@ -220,7 +220,7 @@ public class FileService {
         try {
             Files.deleteIfExists(path);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DELETING_TMP_FILE);
         }
         log.info("File {} deleted", fileName);
     }

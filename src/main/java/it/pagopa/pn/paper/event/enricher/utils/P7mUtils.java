@@ -1,5 +1,6 @@
 package it.pagopa.pn.paper.event.enricher.utils;
 
+import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import org.bouncycastle.asn1.*;
 import reactor.core.publisher.Mono;
 
@@ -7,14 +8,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_WHILE_PARSING_P7M;
+
 public class P7mUtils {
+
 
     public static Mono<InputStream> findSignedData(InputStream inStrm) {
         ASN1StreamParser ap = new ASN1StreamParser(inStrm);
         try {
             return Mono.just(Objects.requireNonNull(recursiveParse(ap.readObject())));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_WHILE_PARSING_P7M);
         }
     }
 
@@ -26,7 +30,7 @@ public class P7mUtils {
                 Object child = objParser.parseExplicitBaseObject();
                 return recursiveParse(child);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_WHILE_PARSING_P7M);
             }
         } else if (obj instanceof ASN1OctetStringParser octetStringParser) {
             return octetStringParser.getOctetStream();
@@ -46,7 +50,7 @@ public class P7mUtils {
             }
             return result;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_WHILE_PARSING_P7M);
         }
     }
 

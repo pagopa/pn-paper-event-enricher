@@ -17,5 +17,10 @@ public class PnPaperEventEnricherExceptionConstant {
     public static final String ERROR_WHILE_COMPUTING_SHA_256_HASH = "Error while computing SHA-256 hash";
     public static final String DOWNLOAD_URL_IS_NULL = "Download url is null";
 
+    public static final String ERROR_DELETING_TMP_FILE = "ERROR_DELETING_TMP_FILE";
+    public static final String ERROR_DURING_WRITE_FILE = "ERROR_DURING_WRITE_FILE";
+    public static final String ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE = "ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE";
+    public static final String ERROR_WHILE_PARSING_P7M = "ERROR_WHILE_PARSING_P7M";
+
 
 }
