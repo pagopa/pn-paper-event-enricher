@@ -7,14 +7,13 @@ import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEn
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEvent;
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
 import it.pagopa.pn.paper.event.enricher.model.CON020ArchiveStatusEnum;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.*;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_CODE_INVALID_REQUESTID;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.FAILED_TO_READ_FILE;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 
 @Slf4j
@@ -35,14 +35,14 @@ import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 public class PaperEventEnricherUtils {
 
 
-    public static Mono<CON020ArchiveEntity> createArchiveEntity(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
+    public static CON020ArchiveEntity createArchiveEntity(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
         CON020ArchiveEntity con020ArchiveEntity = new CON020ArchiveEntity();
 
         Instant now = Instant.now();
         String taskId = System.getenv(TASK_ID_ENV);
 
         if (!checkIfAttachmentIsPresent(analogMailDetail)) {
-            return Mono.error(new PaperEventEnricherException("Archive attachment uri not found.", 400, "ARCHIVE_ATTACHMENT_NOT_FOUND_IN_EVENT"));
+            throw new PaperEventEnricherException("Archive attachment uri not found.", 400, "ARCHIVE_ATTACHMENT_NOT_FOUND_IN_EVENT");
         }
 
         String archiveUri = analogMailDetail.getAttachments().get(0).getUri();
@@ -57,7 +57,7 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
 
-        return Mono.just(con020ArchiveEntity);
+        return con020ArchiveEntity;
     }
 
     private static boolean checkIfAttachmentIsPresent(PaperEventEnricherInputEvent.Payload.AnalogMailDetail analogMailDetail) {
@@ -67,7 +67,7 @@ public class PaperEventEnricherUtils {
                 StringUtils.hasText(analogMailDetail.getAttachments().get(0).getUri());
     }
 
-    public static Mono<CON020EnrichedEntity> createEnricherEntity(PaperEventEnricherInputEvent.Payload payload) {
+    public static CON020EnrichedEntity createEnricherEntityForMetadata(PaperEventEnricherInputEvent.Payload payload) {
         Instant now = Instant.now();
 
         String archiveUri = payload.getAnalogMail().getAttachments().get(0).getUri();
@@ -88,7 +88,7 @@ public class PaperEventEnricherUtils {
         CON020EnrichedEntityMetadata metadata = getCon020EnrichedEntityMetadata(payload, requestId, archiveUri);
         con020EnrichedEntity.setMetadata(metadata);
 
-        return Mono.just(con020EnrichedEntity);
+        return con020EnrichedEntity;
     }
 
     private static CON020EnrichedEntityMetadata getCon020EnrichedEntityMetadata(PaperEventEnricherInputEvent.Payload payload, String requestId, String archiveUri) {
@@ -133,7 +133,7 @@ public class PaperEventEnricherUtils {
         }
     }
 
-    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status) {
+    public static CON020ArchiveEntity createArchiveEntityForStatusUpdate(PaperArchiveEvent.Payload paperArchiveEvent, String status, FileCounter counter) {
         Instant now = Instant.now();
         String taskId = System.getenv("ECS_AGENT_URI");
 
@@ -144,11 +144,13 @@ public class PaperEventEnricherUtils {
         con020ArchiveEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020ArchiveEntity.setProcessingTask(taskId);
         con020ArchiveEntity.setLastModificationTime(now);
+        con020ArchiveEntity.setTotalFiles(counter.getTotalFiles() - 1);
+        con020ArchiveEntity.setProcessedFiles(counter.getUpdatedItems().get());
 
         return con020ArchiveEntity;
     }
 
-    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String archiveFileKey, String requestId, String registeredLetterCode, String sha256) {
+    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String archiveFileKey, String requestId, String registeredLetterCode) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
 
         Instant now = Instant.now();
@@ -168,10 +170,10 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] getContent(ZipArchiveInputStream zipInputStream, String fileName) {
+    public static byte[] getContent(InputStream in, String fileName) {
         try {
-            return zipInputStream.readAllBytes();
-        } catch (IOException e) {
+            return in.readAllBytes();
+        } catch (Exception e) {
             log.error("Failed to read file [{}]", fileName, e);
             throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
         }
@@ -183,13 +185,15 @@ public class PaperEventEnricherUtils {
         for (String line : bolString.split("\n")) {
             if (!line.isEmpty()) {
                 String[] cells = line.split("\\|");
-                String p7mEntryName = cells[0];
-                String requestId = cells[3];
-                String registeredLetterCode = cells[6];
+                if(cells.length > 6) {
+                    String p7mEntryName = cells[0];
+                    String requestId = cells[3];
+                    String registeredLetterCode = cells[6];
 
-                if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
-                    IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
-                    archiveDetails.put(p7mEntryName, indexData);
+                    if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
+                        IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
+                        archiveDetails.put(p7mEntryName, indexData);
+                    }
                 }
             }
         }

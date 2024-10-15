@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -27,13 +28,18 @@ public class PaperArchiveEventHandler {
     @Bean
     public Consumer<Message<PaperArchiveEvent.Payload>> pnPaperEventEnricherNewArchiveConsumer() {
         return message -> {
+            Instant start = Instant.now();
             log.debug("Handle message from {} with content {}", PnLogger.EXTERNAL_SERVICES.PN_EXTERNAL_CHANNELS, message);
+            log.info("Start handling message at: {}", start);
             message.getPayload();
             if(Objects.nonNull(message.getPayload().getArchiveFileKey())) {
                 MDC.put(MDCUtils.MDC_PN_CTX_REQUEST_ID, message.getPayload().getArchiveFileKey());
             }
             var handledMessage = paperEventEnricherService.handlePaperEventEnricherEvent(message.getPayload())
-                    .doOnSuccess(unused -> log.logEndingProcess(HANDLER_REQUEST))
+                    .doOnSuccess(unused -> {
+                        log.logEndingProcess(HANDLER_REQUEST);
+                        log.info("End handling message duration: {} ms", Instant.now().toEpochMilli() - start.toEpochMilli());
+                    })
                     .doOnError(throwable -> {
                         log.logEndingProcess(HANDLER_REQUEST, false, throwable.getMessage());
                         HandleEventUtils.handleException(message.getHeaders(), throwable);

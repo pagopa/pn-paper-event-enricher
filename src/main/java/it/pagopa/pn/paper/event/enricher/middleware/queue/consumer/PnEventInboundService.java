@@ -16,8 +16,8 @@ import org.springframework.util.StringUtils;
 import java.util.Objects;
 import java.util.UUID;
 
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.ERROR_CODE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionCode.ERROR_MESSAGE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_CODE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_MESSAGE_PAPER_EVENT_ENRICHER_EVENTTYPENOTSUPPORTED;
 
 @Configuration
 @Slf4j
