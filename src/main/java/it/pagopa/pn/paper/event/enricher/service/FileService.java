@@ -14,6 +14,7 @@ import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,8 @@ public class FileService {
     public static final String UPLOADED_FILES_COUNT = "Uploaded files count={}";
     public static final String DATA_MAP_WITH_ENTRY = "Parsed bol file: [{}] from archive and enriched indexDataMap with {} entry";
     public static final String PDF_EXTRATED = "pdf: {} extrated with content lenght: {}";
+
+    public static final String TMP_FILE_PREFIX = "tmp_";
 
 
     private final SafeStorageService safeStorageService;
@@ -180,28 +183,20 @@ public class FileService {
                     .flatMap(dataBuffer -> DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
                             .doOnError(e -> log.error("Error during file writing: {}", e.getMessage()))
                             .doFinally(signalType -> DataBufferUtils.release(dataBuffer)))
-                    .doFinally(signal -> closeWritableByteChannel(finalChannel))
-                    .doOnError(throwable -> closeWritableByteChannel(finalChannel))
+                    .doOnComplete(() -> uploadDownloadClient.closeWritableByteChannel(finalChannel))
+                    .doOnError(throwable -> uploadDownloadClient.closeWritableByteChannel(finalChannel))
                     .then(Mono.just(newFile));
         } catch (Exception e) {
-            closeWritableByteChannel(channel);
+            log.error("error in URI ", e);
+            uploadDownloadClient.closeWritableByteChannel(channel);
             throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DURING_WRITE_FILE);
-        }
-    }
-
-    public void closeWritableByteChannel(WritableByteChannel channel) {
-        try {
-            if(Objects.nonNull(channel) && channel.isOpen())
-                channel.close();
-            log.info("Download and file writing completed successfully");
-        } catch (IOException e) {
-            log.error("Error closing channel", e);
         }
     }
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return Files.createTempFile(prefix, suffix);
+            ClassPathResource classPathResource = new ClassPathResource("/");
+            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, classPathResource.getFile()).toPath();
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }

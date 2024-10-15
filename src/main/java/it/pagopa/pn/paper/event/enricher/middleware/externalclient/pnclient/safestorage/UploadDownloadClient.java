@@ -88,7 +88,7 @@ public class UploadDownloadClient {
         }
     }
 
-    protected void closeWritableByteChannel(WritableByteChannel channel) {
+    public void closeWritableByteChannel(WritableByteChannel channel) {
         try {
             if(Objects.nonNull(channel) && channel.isOpen())
                 channel.close();
