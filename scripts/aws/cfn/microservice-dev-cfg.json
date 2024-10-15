@@ -5,6 +5,9 @@
     "WireTapLogActivation": "false",
     "MountEfs": "false",
     "SafeStorageConnectionReadMillis": "20000",
-    "SafeStorageConnectionTimeoutMillis": "20000"
+    "SafeStorageConnectionTimeoutMillis": "20000",
+    "UpdateItemMaxConcurrentRequest": "100",
+    "ArchiveQueueConcurrency": "1",
+    "ArchiveQueueMaxNumberOfMessages": "5"
   }
 }

@@ -17,6 +17,7 @@ public class PnPaperEventEnricherConfig {
     private Sqs sqs;
     private String cxId;
     private int safeStorageUploadMaxConcurrentRequest;
+    private int updateItemMaxConcurrentRequest;
 
     @Data
     public static class Dao {

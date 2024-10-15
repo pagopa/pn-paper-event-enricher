@@ -13,9 +13,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.MDC;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class PaperArchiveEventHandlerTest {
@@ -48,11 +50,12 @@ class PaperArchiveEventHandlerTest {
                 .payload(inputMessage).build();
 
         when(message.getPayload()).thenReturn(paperArchiveEvent.getPayload());
+       when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
 
         when(paperEventEnricherService.handlePaperEventEnricherEvent(any())).thenReturn(Mono.empty());
 
         // When
-        paperArchiveEventHandler.pnPaperEventEnricherNewArchiveConsumer().accept(message);
+        paperArchiveEventHandler.paperArchiveConsumer().accept(message);
 
         Assertions.assertEquals("archiveFileKey", MDC.get(MDCUtils.MDC_PN_CTX_REQUEST_ID));
     }
@@ -70,10 +73,11 @@ class PaperArchiveEventHandlerTest {
                 .payload(inputMessage).build();
 
         when(message.getPayload()).thenReturn(paperArchiveEvent.getPayload());
+        when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
 
         when(paperEventEnricherService.handlePaperEventEnricherEvent(any())).thenReturn(Mono.error(new PaperEventEnricherException("error", 400, "error")));
 
-        Executable executable = () -> paperArchiveEventHandler.pnPaperEventEnricherNewArchiveConsumer().accept(message);
+        Executable executable = () -> paperArchiveEventHandler.paperArchiveConsumer().accept(message);
         Assertions.assertThrows(PaperEventEnricherException.class, executable);
 
     }

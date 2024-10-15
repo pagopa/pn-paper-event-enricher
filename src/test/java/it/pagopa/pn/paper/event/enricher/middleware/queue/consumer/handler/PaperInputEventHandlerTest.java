@@ -13,14 +13,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.MDC;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-class PaperEventEnricherInputEventHandlerTest {
+class PaperInputEventHandlerTest {
 
     @Mock
     private PaperEventEnricherService paperEventEnricherService;
@@ -32,7 +32,7 @@ class PaperEventEnricherInputEventHandlerTest {
     private PaperEventEnricherInputEvent.Payload payload;
 
     @InjectMocks
-    private PaperEventEnricherInputEventHandler paperEventEnricherInputEventHandler;
+    private PaperInputEventHandler paperInputEventHandler;
 
     @BeforeEach
     void setUp() {
@@ -54,11 +54,12 @@ class PaperEventEnricherInputEventHandlerTest {
                 .payload(inputMessage).build();
 
         when(message.getPayload()).thenReturn(paperEventEnricherInputEvent.getPayload());
+        when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
 
         when(paperEventEnricherService.handleInputEventMessage(any())).thenReturn(Mono.empty());
 
         // When
-        paperEventEnricherInputEventHandler.pnPaperEventEnricherConsumer().accept(message);
+        paperInputEventHandler.paperInputConsumer().accept(message);
 
         Assertions.assertEquals("requestId", MDC.get(MDCUtils.MDC_PN_CTX_REQUEST_ID));
     }
@@ -79,10 +80,11 @@ class PaperEventEnricherInputEventHandlerTest {
                 .payload(inputMessage).build();
 
         when(message.getPayload()).thenReturn(paperEventEnricherInputEvent.getPayload());
+        when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
 
         when(paperEventEnricherService.handleInputEventMessage(any())).thenReturn(Mono.error(new PaperEventEnricherException("error", 400, "error")));
 
-        Executable executable = () -> paperEventEnricherInputEventHandler.pnPaperEventEnricherConsumer().accept(message);
+        Executable executable = () -> paperInputEventHandler.paperInputConsumer().accept(message);
 
         Assertions.assertThrows(PaperEventEnricherException.class, executable);
 

@@ -1,27 +1,30 @@
 package it.pagopa.pn.paper.event.enricher.service;
 
+
+import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
+import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
+import it.pagopa.pn.paper.event.enricher.middleware.externalclient.pnclient.safestorage.UploadDownloadClient;
+import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
-import org.apache.commons.io.function.IOIterator;
-import org.junit.jupiter.api.*;
-import org.mockito.Mock;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,126 +34,119 @@ class FileServiceTest {
     FileService fileService;
 
     SafeStorageService safeStorageService;
+    UploadDownloadClient uploadDownloadClient;
+    PnPaperEventEnricherConfig config;
 
     @BeforeAll
     void setUp() {
         safeStorageService = mock(SafeStorageService.class);
-        fileService = new FileService(safeStorageService);
+        uploadDownloadClient = mock(UploadDownloadClient.class);
+        config = new PnPaperEventEnricherConfig();
+        config.setSafeStorageUploadMaxConcurrentRequest(10);
+        fileService = new FileService(safeStorageService, uploadDownloadClient, config);
+    }
+
+
+    @Test
+    void extractFileFromBinWithZipFile(){
+        Path path = Paths.get("src/test/resources/attachment_example_completed.zip");
+
+        Mono<Path> result = fileService.extractFileFromBin(path).doOnNext(newFile -> {
+            try {
+                Files.deleteIfExists(newFile);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        StepVerifier.create(result)
+                .expectNextCount(1)
+                .verifyComplete();
     }
 
     @Test
-    void extractFilesFromArchiveWithValidZipEntries() throws IOException {
-        ZipArchiveInputStream zipInputStream = mock(ZipArchiveInputStream.class);
-        ZipArchiveEntry zipEntry = new ZipArchiveEntry("test.pdf");
-        when(zipInputStream.readAllBytes()).thenReturn("testContent".getBytes());
-        when(zipInputStream.getNextEntry()).thenReturn(zipEntry, (ZipArchiveEntry) null);
-        when(zipInputStream.iterator()).thenReturn(IOIterator.adapt(Collections.singletonList(zipEntry).iterator()));
+    void extractFileFromBinWithSevenZipFile() {
+        Path path = Paths.get("src/test/resources/attachment_example_completed2.7z");
 
+        Mono<Path> result = fileService.extractFileFromBin(path).doOnNext(newFile -> {
+            try {
+                Files.deleteIfExists(newFile);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        StepVerifier.create(result)
+                .expectNextCount(1)
+                .verifyComplete();
+    }
+
+
+    @Test
+    void extractFileFromBinWithUnsupportedFile() {
+        Path path = Paths.get("src/test/resources/test.txt");
+
+        Mono<Path> result = fileService.extractFileFromBin(path);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        Objects.equals(throwable.getMessage(), "Unsupported file type"));
+    }
+
+    @Test
+    void extractFileFromArchiveWithZipFile() {
         Map<String, IndexData> indexDataMap = new HashMap<>();
-        Flux<FileDetail> result = fileService.extractFilesFromArchive(zipInputStream, indexDataMap);
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
+        Path path = Paths.get("src/test/resources/archive.zip");
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
 
-        StepVerifier.create(result)
-                .expectNextMatches(fileDetail -> "test.pdf".equals(fileDetail.getFilename()))
-                .verifyComplete();
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+
+        StepVerifier.create(result).expectNextCount(1).verifyComplete();
     }
 
     @Test
-    void extractFilesFromArchiveWithEmptyZip() {
-        ZipArchiveInputStream zipInputStream = mock(ZipArchiveInputStream.class);
-        when(zipInputStream.iterator()).thenReturn(IOIterator.adapt(Collections.emptyIterator()));
-
+    void extractFileFromArchiveWithSevenZipFile() {
         Map<String, IndexData> indexDataMap = new HashMap<>();
-        Flux<FileDetail> result = fileService.extractFilesFromArchive(zipInputStream, indexDataMap);
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
+        Path path = Paths.get("src/test/resources/archive.7z");
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
 
-        StepVerifier.create(result)
-                .verifyComplete();
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+
+        StepVerifier.create(result).expectNextCount(1).verifyComplete();
     }
 
     @Test
-    void extractFilesFromArchiveP7mWithEmptyZip() {
-        ZipArchiveInputStream zipInputStream = mock(ZipArchiveInputStream.class);
-        when(zipInputStream.iterator()).thenReturn(IOIterator.adapt(Collections.emptyIterator()));
-
+    void extractFileFromArchiveWithUnsupportedFile() {
         Map<String, IndexData> indexDataMap = new HashMap<>();
-        List<FileDetail> result = fileService.extractFilesFromArchiveP7m(zipInputStream, indexDataMap);
+        FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
+        Path path = Paths.get("src/test/resources/test.txt");
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
 
-        Assertions.assertTrue(result.isEmpty());
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        Objects.equals(throwable.getMessage(), "Unsupported file type"));
     }
 
     @Test
-    void retrieveDownloadUrlReturnsValidUrl() {
-        String archiveFileKey = "testKey";
-        when(safeStorageService.callSafeStorageGetFileAndDownload(archiveFileKey)).thenReturn(Mono.just("testUrl"));
+    void downloadFile() {
+        String archiveFileKey = "validArchiveFileKey";
+        Path file = mock(Path.class);
 
-        Mono<String> result = fileService.retrieveDownloadUrl(archiveFileKey);
+        when(safeStorageService.callSafeStorageGetFile(archiveFileKey)).thenReturn(Mono.just("http://example.com/file"));
+        when(uploadDownloadClient.downloadContent("http://example.com/file", file)).thenReturn(Mono.empty());
+        Flux<Void> result = fileService.downloadFile(archiveFileKey, file);
 
         StepVerifier.create(result)
-                .expectNext("testUrl")
                 .verifyComplete();
     }
 
     @Test
-    void downloadFileReturnsFileContent() {
-        String url = "testUrl";
-        byte[] content = "testContent".getBytes();
-        when(safeStorageService.downloadContent(url)).thenReturn(Flux.just(content));
-
-        Flux<byte[]> result = fileService.downloadFile(url);
-
-        StepVerifier.create(result)
-                .expectNext(content)
-                .verifyComplete();
-    }
-
-    @Test
-    void uploadPdfReturnsFileKey() {
-        byte[] pdfBytes = "testPdf".getBytes();
-        String sha256 = "testSha256";
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(pdfBytes, sha256)).thenReturn(Mono.just("testFileKey"));
-
-        Mono<String> result = fileService.uploadPdf(pdfBytes, sha256);
-
-        StepVerifier.create(result)
-                .expectNext("testFileKey")
-                .verifyComplete();
-    }
-
-    @Test
-    void retrieveDownloadUrlWithInvalidKey() {
-        String archiveFileKey = "invalidKey";
-        when(safeStorageService.callSafeStorageGetFileAndDownload(archiveFileKey)).thenReturn(Mono.error(new RuntimeException("File not found")));
-
-        Mono<String> result = fileService.retrieveDownloadUrl(archiveFileKey);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof RuntimeException && throwable.getMessage().equals("File not found"))
-                .verify();
-    }
-
-
-    @Test
-    void downloadFileWithInvalidUrl() {
-        String url = "http://example.com/invalid";
-        when(safeStorageService.downloadContent(url)).thenReturn(Flux.error(new RuntimeException("File not found")));
-
-        Flux<byte[]> result = fileService.downloadFile(url);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof RuntimeException && throwable.getMessage().equals("File not found"))
-                .verify();
-    }
-
-
-    @Test
-    void uploadPdfWithInvalidData() {
-        byte[] pdfBytes = "invalid content".getBytes();
-        String sha256 = "invalidSha256";
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(pdfBytes, sha256)).thenReturn(Mono.error(new RuntimeException("Upload failed")));
-
-        Mono<String> result = fileService.uploadPdf(pdfBytes, sha256);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof RuntimeException && throwable.getMessage().equals("Upload failed"))
-                .verify();
+    void deleteFileTmp() throws IOException {
+        Path file = Files.createTempFile("test", ".tmp");
+        Assertions.assertDoesNotThrow(() -> fileService.deleteFileTmp(file));
     }
 }

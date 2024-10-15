@@ -18,8 +18,14 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import javax.net.ssl.SSLHandshakeException;
+import java.io.IOException;
 import java.net.*;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.Objects;
 
 @Component
 @CustomLog
@@ -27,7 +33,7 @@ public class UploadDownloadClient {
 
     private static final int RETRY_MAX_ATTEMPTS_PRESIGNED_URL = 3;
 
-    private final WebClient webClient;
+    protected WebClient webClient;
 
     public UploadDownloadClient() {
         this.webClient = WebClient.builder()
@@ -43,41 +49,55 @@ public class UploadDownloadClient {
                 .uri(URI.create(fileCreationResponse.getUploadUrl()))
                 .header("Content-Type", "application/pdf")
                 .header("x-amz-meta-secret", fileCreationResponse.getSecret())
-                .header("x-amz-checksum-sha256",sha256)
+                .header("x-amz-checksum-sha256", sha256)
                 .bodyValue(content)
                 .retrieve()
                 .toBodilessEntity()
                 .thenReturn(fileCreationResponse.getKey())
                 .onErrorResume(ee -> {
-                    log.error("Normalize Address - uploadContent Exception uploading file", ee);
+                    log.error("Error during upload file", ee);
                     return Mono.error(new PaperEventEnricherException(ee.getMessage(), 500, "UPLOAD_ERROR"));
                 });
     }
 
-    public Flux<byte[]> downloadContent(String downloadUrl) {
-        log.info("start to download file to: {}", downloadUrl);
+    public Mono<Void> downloadContent(String downloadUrl, Path path) {
+        log.info("start to download file from: {}", downloadUrl);
+        WritableByteChannel channel = null;
         try {
+            channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            WritableByteChannel finalChannel = channel;
             return webClient
                     .get()
                     .uri(new URI(downloadUrl))
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
-                    .map(dataBuffer -> {
-                        byte[] bytes = new byte[dataBuffer.readableByteCount()];
-                        dataBuffer.read(bytes);
-                        DataBufferUtils.release(dataBuffer); // Release buffer
-                        return bytes;
+                    .flatMap(dataBuffer -> {
+                        log.debug("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
+                        return DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
+                                .doOnError(e -> log.error("Error during file writing"))
+                                .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
                     })
-                    .doOnError(ex -> log.error("Error in WebClient", ex))
-                    .onErrorMap(ex -> {
-                        log.error("downloadContent Exception downloading content", ex);
-                        return new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR");
-                    });
-        } catch (URISyntaxException ex) {
+                    .doOnComplete(() -> closeWritableByteChannel(finalChannel))
+                    .doOnError(throwable -> closeWritableByteChannel(finalChannel))
+                    .then();
+
+        } catch (Exception ex) {
             log.error("error in URI ", ex);
-            return Flux.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
+            closeWritableByteChannel(channel);
+            return Mono.error(new PaperEventEnricherException(ex.getMessage(), 500, "DOWNLOAD_ERROR"));
         }
     }
+
+    public void closeWritableByteChannel(WritableByteChannel channel) {
+        try {
+            if(Objects.nonNull(channel) && channel.isOpen())
+                channel.close();
+            log.info("Download and file writing completed successfully");
+        } catch (IOException e) {
+            log.error("Error closing channel", e);
+        }
+    }
+
 
     protected ExchangeFilterFunction buildRetryExchangeFilterFunction() {
         return (request, next) -> next.exchange(request)
@@ -96,7 +116,7 @@ public class UploadDownloadClient {
                 );
     }
 
-    private boolean isRetryableException(Throwable throwable) {
+    protected boolean isRetryableException(Throwable throwable) {
         boolean retryable = throwable instanceof TimeoutException ||
                 throwable instanceof SocketException ||
                 throwable instanceof SocketTimeoutException ||

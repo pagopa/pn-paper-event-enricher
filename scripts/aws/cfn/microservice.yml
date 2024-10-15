@@ -102,6 +102,12 @@ Parameters:
   SafeStorageUploadMaxConcurrentRequest:
     Type: Number
     Description: 'Max concurrent request for safe storage upload'
+    Default: 10
+
+  UpdateItemMaxConcurrentRequest:
+    Type: Number
+    Description: 'Max concurrent request for update item'
+    Default: 50
 
   EnrichedEventsQueueArn:
     Type: String
@@ -212,6 +218,26 @@ Parameters:
       - 'RUNNING'
       - 'STOPPED'
 
+  InputQueueConcurrency:
+    Type: Number
+    Default: 1
+    Description: 'Number of concurrent messages to process from the input queue'
+
+  InputQueueMaxNumberOfMessages:
+    Type: Number
+    Default: 10
+    Description: 'Maximum number of messages to process from the input queue'
+
+  ArchiveQueueConcurrency:
+    Type: Number
+    Default: 1
+    Description: 'Number of concurrent messages to process from the archive queue'
+
+  ArchiveQueueMaxNumberOfMessages:
+    Type: Number
+    Default: 5
+    Description: 'Maximum number of messages to process from the archive queue'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -243,6 +269,11 @@ Resources:
         ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
         ContainerEnvEntry9: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'
         ContainerEnvEntry10: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEREADTIMEOUTMILLIS=${SafeStorageConnectionReadMillis}'
+        ContainerEnvEntry11: !Sub 'PN_PAPEREVENTENRICHER_UPDATEITEMMAXCONCURRENTREQUEST=${UpdateItemMaxConcurrentRequest}'
+        ContainerEnvEntry12: !Sub 'PN_PAPEREVENTENRICHER_SQS_INPUTQUEUECONCURRENCY=${InputQueueConcurrency}'
+        ContainerEnvEntry13: !Sub 'PN_PAPEREVENTENRICHER_SQS_INPUTQUEUEMAXNUMBEROFMESSAGES=${InputQueueMaxNumberOfMessages}'
+        ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUECONCURRENCY=${ArchiveQueueConcurrency}'
+        ContainerEnvEntry15: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
         MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
