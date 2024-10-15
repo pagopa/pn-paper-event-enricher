@@ -107,7 +107,7 @@ Parameters:
   UpdateItemMaxConcurrentRequest:
     Type: Number
     Description: 'Max concurrent request for update item'
-    Default: 50
+    Default: 100
 
   EnrichedEventsQueueArn:
     Type: String
