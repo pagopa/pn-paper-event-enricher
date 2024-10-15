@@ -218,6 +218,26 @@ Parameters:
       - 'RUNNING'
       - 'STOPPED'
 
+  InputQueueConcurrency:
+    Type: Number
+    Default: 1
+    Description: 'Number of concurrent messages to process from the input queue'
+
+  InputQueueMaxNumberOfMessages:
+    Type: Number
+    Default: 10
+    Description: 'Maximum number of messages to process from the input queue'
+
+  ArchiveQueueConcurrency:
+    Type: Number
+    Default: 1
+    Description: 'Number of concurrent messages to process from the archive queue'
+
+  ArchiveQueueMaxNumberOfMessages:
+    Type: Number
+    Default: 10
+    Description: 'Maximum number of messages to process from the archive queue'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -241,15 +261,18 @@ Resources:
         ContainerImageURI: !Sub '${ContainerImageUri}'
         ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
         ContainerEnvEntry2: !Sub 'PN_PAPEREVENTENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
-        ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_TOPICS_GATEWAYEVENTS=${PaperArchivesQueueName},${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-        ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=http://${ApplicationLoadBalancerDomain}:8080'
-        ContainerEnvEntry7: !Sub 'PN_PAPEREVENTENRICHER_CXID=${PaperEventEnrichmentCxId}'
-        ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
-        ContainerEnvEntry9: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'
-        ContainerEnvEntry10: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEREADTIMEOUTMILLIS=${SafeStorageConnectionReadMillis}'
-        ContainerEnvEntry11: !Sub 'PN_PAPEREVENTENRICHER_UPDATEITEMMAXCONCURRENTREQUEST=${UpdateItemMaxConcurrentRequest}'
+        ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
+        ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_CXID=${PaperEventEnrichmentCxId}'
+        ContainerEnvEntry7: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
+        ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'
+        ContainerEnvEntry9: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEREADTIMEOUTMILLIS=${SafeStorageConnectionReadMillis}'
+        ContainerEnvEntry10: !Sub 'PN_PAPEREVENTENRICHER_UPDATEITEMMAXCONCURRENTREQUEST=${UpdateItemMaxConcurrentRequest}'
+        ContainerEnvEntry11: !Sub 'PN_PAPEREVENTENRICHER_SQS_INPUTQUEUECONCURRENCY=${InputQueueConcurrency}'
+        ContainerEnvEntry12: !Sub 'PN_PAPEREVENTENRICHER_SQS_INPUTQUEUEMAXNUMBEROFMESSAGES=${InputQueueMaxNumberOfMessages}'
+        ContainerEnvEntry13: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUECONCURRENCY=${ArchiveQueueConcurrency}'
+        ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
         MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
