@@ -1,6 +1,8 @@
 package it.pagopa.pn.paper.event.enricher.middleware.queue.consumer;
 
 import it.pagopa.pn.commons.utils.MDCUtils;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
@@ -8,6 +10,7 @@ import org.springframework.messaging.MessageHeaders;
 import java.util.Objects;
 import java.util.UUID;
 
+@RequiredArgsConstructor(access = AccessLevel.NONE)
 public class PnEventInboundUtils {
 
     public static void enrichMDC(Message<?> message) {
