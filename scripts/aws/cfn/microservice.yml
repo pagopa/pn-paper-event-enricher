@@ -235,7 +235,7 @@ Parameters:
 
   ArchiveQueueMaxNumberOfMessages:
     Type: Number
-    Default: 5
+    Default: 10
     Description: 'Maximum number of messages to process from the archive queue'
 
 Resources:
