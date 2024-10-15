@@ -99,7 +99,9 @@ class Con020EnricherDaoTest {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
         CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updateMetadata(con020ArchiveEntity)).verifyComplete();
+        StepVerifier.create(con020EnricherDao.updateMetadata(con020ArchiveEntity))
+                .expectNext(con020ArchiveEntity)
+                .verifyComplete();
     }
 
     @Test

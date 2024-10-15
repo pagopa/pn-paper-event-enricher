@@ -238,6 +238,11 @@ Parameters:
     Default: 10
     Description: 'Maximum number of messages to process from the archive queue'
 
+  PdfPagesNumber:
+    Type: Number
+    Default: 0
+    Description: 'Max Number of pages for any PDF file, if 0 then no limit'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -273,6 +278,7 @@ Resources:
         ContainerEnvEntry12: !Sub 'PN_PAPEREVENTENRICHER_SQS_INPUTQUEUEMAXNUMBEROFMESSAGES=${InputQueueMaxNumberOfMessages}'
         ContainerEnvEntry13: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUECONCURRENCY=${ArchiveQueueConcurrency}'
         ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
+        ContainerEnvEntry15: !Sub 'PN_PAPEREVENTENRICHER_PDFPAGESNUMBER=${PdfPagesNumber}'
         MappedPaths: '/paper-event-enricher/*'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
