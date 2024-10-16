@@ -17,13 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
-
-import java.net.ConnectException;
-import java.time.Duration;
-import java.util.concurrent.TimeoutException;
-
-import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SAFE_STORAGE_PREFIX;
 
 
 @CustomLog
@@ -49,9 +42,6 @@ public class PnSafeStorageClient extends BaseClient {
     }
 
     public Mono<FileDownloadResponse> getFile(String fileKey) {
-        if (fileKey.startsWith(SAFE_STORAGE_PREFIX)) {
-            fileKey = fileKey.replace(SAFE_STORAGE_PREFIX, "");
-        }
         log.debug("Req params : {}", fileKey);
         return fileDownloadApi.getFile(fileKey, this.pnPaperEventEnricherConfig.getCxId(), false)
                 .onErrorResume(WebClientResponseException.class, ex -> {

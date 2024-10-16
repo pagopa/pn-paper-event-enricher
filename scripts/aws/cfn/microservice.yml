@@ -246,6 +246,10 @@ Parameters:
       - true
       - false
 
+  SandboxSafeStorageBaseUrl:
+    Type: String
+    Description: 'Url to the SafeStorage microservice'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -271,7 +275,7 @@ Resources:
         ContainerEnvEntry2: !Sub 'PN_PAPEREVENTENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
         ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
         ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
-        ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=http://${ApplicationLoadBalancerDomain}:8080'
+        ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=${SandboxSafeStorageBaseUrl}'
         ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_CXID=${PaperEventEnrichmentCxId}'
         ContainerEnvEntry7: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
         ContainerEnvEntry8: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGECONNECTIONTIMEOUTMILLIS=${SafeStorageConnectionTimeoutMillis}'

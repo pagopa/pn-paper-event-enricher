@@ -50,10 +50,6 @@ public class SafeStorageService {
                         return Mono.just(fileCreationResponseDto.getDownload().getUrl());
                     }
                     return Mono.error(new PaperEventEnricherException(DOWNLOAD_URL_IS_NULL, 400, ERROR_GET_FILE));
-                })
-                .onErrorResume(e -> {
-                    log.error("failed to download file", e);
-                    return Mono.error(e);
                 });
     }
 }
