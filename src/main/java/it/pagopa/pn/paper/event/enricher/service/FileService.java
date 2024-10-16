@@ -41,6 +41,7 @@ import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
 import static it.pagopa.pn.paper.event.enricher.utils.P7mUtils.findSignedData;
 import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.getContent;
 import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.parseBol;
+import static it.pagopa.pn.paper.event.enricher.utils.PdfUtils.cutPdf;
 
 @Component
 @CustomLog
@@ -159,6 +160,9 @@ public class FileService {
         } else if (name.endsWith(PDF.getValue())) {
             byte[] content = getContent(zipInputStream, name);
             log.debug(PDF_EXTRATED, name, content.length);
+            if(pnPaperEventEnricherConfig.isPdfTwoPagesEnabled()){
+                content = cutPdf(content, pnPaperEventEnricherConfig.getPdfPageSize());
+            }
             String sha256 = Sha256Handler.computeSha256(content);
             return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256)
                     .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());

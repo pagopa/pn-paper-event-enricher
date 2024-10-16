@@ -8,6 +8,7 @@
     "SafeStorageConnectionTimeoutMillis": "20000",
     "UpdateItemMaxConcurrentRequest": "100",
     "ArchiveQueueConcurrency": "1",
-    "ArchiveQueueMaxNumberOfMessages": "10"
+    "ArchiveQueueMaxNumberOfMessages": "10",
+    "PdfTwoPagesEnabled": "true"
   }
 }

@@ -41,7 +41,7 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
                 .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
                 .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, UpdateTypeEnum.METADATA));
 
-        return updateItem(builder);
+        return updateItem(builder).thenReturn(entity);
     }
 
     @Override
