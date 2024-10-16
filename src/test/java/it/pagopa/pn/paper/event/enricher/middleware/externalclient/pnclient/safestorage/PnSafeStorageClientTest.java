@@ -72,7 +72,7 @@ class PnSafeStorageClientTest {
         when(fileDownloadApi.getFile("fileKey", "cxId", false))
                 .thenReturn(Mono.just(fileDownloadResponse));
 
-        Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("safestorage://fileKey");
+        Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");
 
         StepVerifier.create(result)
                 .expectNext(fileDownloadResponse)
