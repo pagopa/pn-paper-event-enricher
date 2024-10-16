@@ -471,7 +471,7 @@ Resources:
             "productType": <$.data.dynamodb.NewImage.productType.S>,
             "statusDescription": <$.data.dynamodb.NewImage.statusDescription.S>,
             "pdfDocumentType": <$.data.dynamodb.NewImage.pdfDocumentType.S>,
-            "pdfSha256": <$.data.dynamodb.NewImage.pdfsha256.S>,
+            "pdfSha256": <$.data.dynamodb.NewImage.pdfSha256.S>,
             "pdfDate": <$.data.dynamodb.NewImage.pdfDate.S>
           }
       Target: !Ref EnrichedEventsQueueArn
