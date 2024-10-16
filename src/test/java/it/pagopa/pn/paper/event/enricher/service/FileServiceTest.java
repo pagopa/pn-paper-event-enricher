@@ -43,7 +43,7 @@ class FileServiceTest {
         uploadDownloadClient = mock(UploadDownloadClient.class);
         config = new PnPaperEventEnricherConfig();
         config.setSafeStorageUploadMaxConcurrentRequest(10);
-        config.setPdfPagesNumber(2);
+        config.setPdfTwoPagesEnabled(true);
         fileService = new FileService(safeStorageService, uploadDownloadClient, config);
     }
 
@@ -108,7 +108,7 @@ class FileServiceTest {
 
     @Test
     void extractFileFromArchiveWithZipFileWithoutCutFile() {
-        config.setPdfPagesNumber(0);
+        config.setPdfTwoPagesEnabled(false);
         Map<String, IndexData> indexDataMap = new HashMap<>();
         FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.zip");

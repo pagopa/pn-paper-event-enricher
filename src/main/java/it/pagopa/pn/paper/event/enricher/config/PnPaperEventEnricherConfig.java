@@ -18,7 +18,8 @@ public class PnPaperEventEnricherConfig {
     private String cxId;
     private int safeStorageUploadMaxConcurrentRequest;
     private int updateItemMaxConcurrentRequest;
-    private int pdfPagesNumber;
+    private boolean pdfTwoPagesEnabled;
+    private int pdfPageSize;
 
     @Data
     public static class Dao {

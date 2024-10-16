@@ -160,8 +160,8 @@ public class FileService {
         } else if (name.endsWith(PDF.getValue())) {
             byte[] content = getContent(zipInputStream, name);
             log.debug(PDF_EXTRATED, name, content.length);
-            if(pnPaperEventEnricherConfig.getPdfPagesNumber() != 0){
-                content = cutPdf(content, pnPaperEventEnricherConfig.getPdfPagesNumber());
+            if(pnPaperEventEnricherConfig.isPdfTwoPagesEnabled()){
+                content = cutPdf(content, pnPaperEventEnricherConfig.getPdfPageSize());
             }
             String sha256 = Sha256Handler.computeSha256(content);
             return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256)

@@ -9,6 +9,6 @@
     "UpdateItemMaxConcurrentRequest": "100",
     "ArchiveQueueConcurrency": "1",
     "ArchiveQueueMaxNumberOfMessages": "10",
-    "PdfPagesNumber": "true"
+    "PdfTwoPagesEnabled": "true"
   }
 }
