@@ -515,28 +515,26 @@ Resources:
             "digitalCourtesy": null,
             "digitalLegal": null,
             "analogMail": {
-              "requestId": <$.Body.sendRequestId>,
-              "registeredLetterCode": <$.Body.registeredLetterCode>,
+              "requestId": <$.body.metadata.sendRequestId>,
+              "registeredLetterCode": <$.body.metadata.registeredLetterCode>,
               "productType": "AR",
               "iun": null,
               "statusCode": "CON020",
               "statusDescription": null,
-              "statusDateTime": <$.Body.generationTime>,
+              "statusDateTime": <$.body.metadata.generationTime>,
               "deliveryFailureCause": null,
-              "attachments": [
-                {
-                  "id": "0",
-                  "documentType": null,
-                  "uri": <$.Body.printedPdf>,
-                  "sha256": null,
-                  "date": <$.Body.generationTime>
-                }
-              ],
+              "attachments": [{
+                "id": "0",
+                "documentType": null,
+                "uri": <$.body.printedPdf>,
+                "sha256": null,
+                "date": <$.body.metadata.generationTime>
+              }],
               "discoveredAddress": null,
-              "clientRequestTimeStamp": <$.Body.eventTime>
+              "clientRequestTimeStamp": <$.body.metadata.eventTime>
             },
             "clientId": "pn-cons-000",
-            "eventTimestamp": <$.Body.eventTime>
+            "eventTimestamp": <$.body.metadata.eventTime>
           }        
         EventBridgeEventBusParameters:
           DetailType: 'ExternalChannelOutcomeEvent'
