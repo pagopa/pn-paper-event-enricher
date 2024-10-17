@@ -250,6 +250,11 @@ Parameters:
     Type: String
     Description: 'Url to the SafeStorage microservice'
 
+  PaperEventEnricherEphemeralStorageValueGB:
+    Type: Number
+    Default: 200
+    Description: 'Ephemeral storage value in GB'
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -300,6 +305,7 @@ Resources:
         AutoscalingStrategy: 'SQS'
         AutoscalingQueueName: !Ref PaperEventEnrichmentInputQueueName
         AutoscalingThreshold: !Ref PaperEventEnrichmentAutoscalingThreshold
+        EphemeralStorageValueGB: !Ref PaperEventEnricherEphemeralStorageValueGB
 
 
   PaperEventEnricherMicroserviceTaskManagedPolicy:

@@ -9,6 +9,7 @@
     "UpdateItemMaxConcurrentRequest": "100",
     "ArchiveQueueConcurrency": "1",
     "ArchiveQueueMaxNumberOfMessages": "10",
-    "PdfTwoPagesEnabled": "true"
+    "PdfTwoPagesEnabled": "true",
+    "PaperEventEnricherEphemeralStorageValueGB": "200"
   }
 }
