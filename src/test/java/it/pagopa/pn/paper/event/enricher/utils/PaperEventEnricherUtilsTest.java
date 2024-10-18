@@ -37,7 +37,7 @@ class PaperEventEnricherUtilsTest {
         assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode), result.getHashKey());
         assertEquals(DOCUMENT_TYPE, result.getPdfDocumentType());
         assertEquals(sha256, result.getPdfSha256());
-        assertEquals(fileKey, result.getPrintedPdf());
+        assertEquals(SAFE_STORAGE_PREFIX + fileKey, result.getPrintedPdf());
         assertEquals(ENRICHED_ENTITY_NAME, result.getEntityName());
         assertEquals(SORT_KEY, result.getSortKey());
         assertFalse(result.getMetadataPresent());

@@ -152,7 +152,7 @@ public class PaperEventEnricherUtils {
 
     public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String archiveFileKey, String requestId, String registeredLetterCode) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
-
+        var fileKeyWithSuffix = fileKey.startsWith(SAFE_STORAGE_PREFIX) ? fileKey : SAFE_STORAGE_PREFIX + fileKey;
         Instant now = Instant.now();
 
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
@@ -164,7 +164,7 @@ public class PaperEventEnricherUtils {
         con020EnrichedEntity.setRecordCreationTime(now);
         con020EnrichedEntity.setLastModificationTime(now);
         con020EnrichedEntity.setMetadataPresent(Boolean.FALSE);
-        con020EnrichedEntity.setPrintedPdf(fileKey);
+        con020EnrichedEntity.setPrintedPdf(fileKeyWithSuffix);
         con020EnrichedEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
 
         return con020EnrichedEntity;
