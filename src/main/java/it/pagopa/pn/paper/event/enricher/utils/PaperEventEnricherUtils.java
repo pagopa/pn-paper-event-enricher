@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -71,6 +70,7 @@ public class PaperEventEnricherUtils {
         Instant now = Instant.now();
 
         String archiveUri = payload.getAnalogMail().getAttachments().get(0).getUri();
+        String con020DocumentType = payload.getAnalogMail().getAttachments().get(0).getDocumentType();
         String requestId = payload.getAnalogMail().getRequestId();
         String registeredLetterCode = payload.getAnalogMail().getRegisteredLetterCode();
 
@@ -84,6 +84,7 @@ public class PaperEventEnricherUtils {
         con020EnrichedEntity.setLastModificationTime(now);
         con020EnrichedEntity.setMetadataPresent(true);
         con020EnrichedEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
+        con020EnrichedEntity.setPdfDocumentType(con020DocumentType);
 
         CON020EnrichedEntityMetadata metadata = getCon020EnrichedEntityMetadata(payload, requestId, archiveUri);
         con020EnrichedEntity.setMetadata(metadata);
@@ -156,7 +157,6 @@ public class PaperEventEnricherUtils {
         Instant now = Instant.now();
 
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
-        con020EnrichedEntity.setPdfDocumentType(DOCUMENT_TYPE);
         con020EnrichedEntity.setPdfSha256(sha256);
         con020EnrichedEntity.setPdfDate(Instant.now());
         con020EnrichedEntity.setSortKey(SORT_KEY);
