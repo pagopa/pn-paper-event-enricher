@@ -35,7 +35,6 @@ class PaperEventEnricherUtilsTest {
 
         assertNotNull(result);
         assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode), result.getHashKey());
-        assertEquals(DOCUMENT_TYPE, result.getPdfDocumentType());
         assertEquals(sha256, result.getPdfSha256());
         assertEquals(SAFE_STORAGE_PREFIX + fileKey, result.getPrintedPdf());
         assertEquals(ENRICHED_ENTITY_NAME, result.getEntityName());
@@ -49,7 +48,7 @@ class PaperEventEnricherUtilsTest {
                 .builder()
                 .registeredLetterCode("registeredLetterCode")
                 .requestId("requestId")
-                .attachments(List.of(PaperEventEnricherInputEvent.Payload.Attachment.builder().uri("uri").build())).build();
+                .attachments(List.of(PaperEventEnricherInputEvent.Payload.Attachment.builder().uri("uri").documentType("Affido conservato").build())).build();
 
         PaperEventEnricherInputEvent.Payload payload = PaperEventEnricherInputEvent.Payload.builder()
                 .analogMail(analogMailDetail).build();
@@ -60,6 +59,7 @@ class PaperEventEnricherUtilsTest {
         assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity("uri", "requestId", "registeredLetterCode"), result.getHashKey());
         assertEquals(ENRICHED_ENTITY_NAME, result.getEntityName());
         assertEquals(SORT_KEY, result.getSortKey());
+        assertEquals(analogMailDetail.getAttachments().get(0).getDocumentType(), result.getPdfDocumentType());
         assertTrue(result.getMetadataPresent());
     }
 
