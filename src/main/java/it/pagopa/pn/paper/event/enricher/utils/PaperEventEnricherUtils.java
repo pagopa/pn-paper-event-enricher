@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -156,7 +155,7 @@ public class PaperEventEnricherUtils {
         Instant now = Instant.now();
 
         con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
-        con020EnrichedEntity.setPdfDocumentType(DOCUMENT_TYPE);
+        con020EnrichedEntity.setPdfDocumentType(PDF_DOCUMENT_TYPE);
         con020EnrichedEntity.setPdfSha256(sha256);
         con020EnrichedEntity.setPdfDate(Instant.now());
         con020EnrichedEntity.setSortKey(SORT_KEY);
