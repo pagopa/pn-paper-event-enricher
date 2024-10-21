@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const SAFE_STORAGE_URL = 'http://localhost:3000/safe-storage/v1/files';
+const SAFE_STORAGE_URL = 'http://localhost:8888/safe-storage/v1/files';
 
 async function computeSHA256(filePath) {
     const fileBuffer = fs.readFileSync(filePath);

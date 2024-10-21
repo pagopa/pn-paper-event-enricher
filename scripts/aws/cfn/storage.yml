@@ -84,7 +84,7 @@ Resources:
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 18000
+        VisibilityTimeout: 2700 # 45 minuti
         MaxReceiveCount: 1
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
