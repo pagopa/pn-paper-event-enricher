@@ -46,7 +46,7 @@ async function createFile(filePath, sha256) {
 
     if (uploadResponse.status === 200) {
         console.log(`ARCHIVE FILE LOADED ON SAFESTORAGE KEY ${key}`);
-        return "safestorage://${key}"; //FIXME: LEGGI LA CHIAVE
+        return `safestorage://${key}`;
     } else {
         console.log(`Error uploading file: ${uploadResponse.data}`);
     }
