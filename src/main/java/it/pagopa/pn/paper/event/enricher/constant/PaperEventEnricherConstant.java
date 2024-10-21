@@ -9,9 +9,14 @@ public class PaperEventEnricherConstant {
     public static final String ARCHIVE_ENTITY_NAME = "CON020Archive";
     public static final String ENRICHED_ENTITY_NAME = "CON020Enriched";
     public static final String SAFE_STORAGE_PREFIX = "safestorage://";
+    public static final String PDF_DOCUMENT_TYPE = "Copia Conforme AAR";
     // SafeStorage status
     public static final String ATTACHED = "ATTACHED";
     public static final String DOCUMENT_TYPE = "PN_PRINTED";
+
+
+    private PaperEventEnricherConstant() {}
+
 
 
 }
