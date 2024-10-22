@@ -71,12 +71,9 @@ public class UploadDownloadClient {
                     .uri(new URI(downloadUrl))
                     .retrieve()
                     .bodyToFlux(DataBuffer.class)
-                    .flatMap(dataBuffer -> {
-                        log.debug("Received DataBuffer of size: {}", dataBuffer.readableByteCount());
-                        return DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
-                                .doOnError(e -> log.error("Error during file writing"))
-                                .doFinally(signalType -> DataBufferUtils.release(dataBuffer));
-                    })
+                    .flatMap(dataBuffer -> DataBufferUtils.write(Flux.just(dataBuffer), finalChannel)
+                            .doOnError(e -> log.error("Error during file writing"))
+                            .doFinally(signalType -> DataBufferUtils.release(dataBuffer)))
                     .doOnComplete(() -> closeWritableByteChannel(finalChannel))
                     .doOnError(throwable -> closeWritableByteChannel(finalChannel))
                     .then();
