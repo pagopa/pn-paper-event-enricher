@@ -1,17 +1,14 @@
 const fs = require('fs');
 const { SQSClient, SendMessageCommand, GetQueueUrlCommand } = require('@aws-sdk/client-sqs');
-const { fromIni } = require('@aws-sdk/credential-provider-ini'); 
-
-// Configura le credenziali
-const sqsClient = new SQSClient({
-    region: 'eu-south-1',
-    credentials: fromIni({ profile: 'dev' })
-});
-
+const { fromIni } = require('@aws-sdk/credential-provider-ini');
 
 const QUEUE_NAME = 'pn-paper-event-enrichment-input';
 
-async function processBatches(outputCSV, fileKeys, sha256, batchSize) {
+async function processBatches(outputCSV, fileKeys, sha256, batchSize, profile) {
+    const sqsClient = new SQSClient({
+        region: 'eu-south-1',
+        credentials: fromIni({ profile: profile })
+    });
     const rows = fs.readFileSync(outputCSV, 'utf-8').split('\n').filter(Boolean);
 
     const commandGetUrl = new GetQueueUrlCommand({ QueueName: QUEUE_NAME });
@@ -23,15 +20,15 @@ async function processBatches(outputCSV, fileKeys, sha256, batchSize) {
         for (let j = 0; j < batch.length; j++) {
             const fileKey = fileKeys[j % fileKeys.length];
             console.log(`Processing row ${batch[j]}`);
-            await processRow(fileKey, batch[j], sha256, queueUrl);
+            await processRow(fileKey, batch[j], sha256, queueUrl, sqsClient);
         }
         console.log(`Processed ${batchSize} rows`);
         console.log("Waiting 1 minute...");
-        await new Promise(resolve => setTimeout(resolve, 60000)); //TODO: test di carico 5 min
+        await new Promise(resolve => setTimeout(resolve, 300000));
     }
 }
 
-async function processRow(fileKey, row, sha256, queueUrl) {
+async function processRow(fileKey, row, sha256, queueUrl, sqsClient) {
     const [requestId, registeredLetterCode, prodType, dateTime] = parseLine(row);
     const messageBody = JSON.stringify({
         analogMail: {
@@ -53,7 +50,7 @@ async function processRow(fileKey, row, sha256, queueUrl) {
         },
         clientId: "pn-cons-000",
         eventTimestamp: dateTime
-    }); //TODO: CONTROLLARE IL MESSAGE BODY
+    });
 
     try {
         console.log(`Sending message to SQS queue: ${messageBody}`);

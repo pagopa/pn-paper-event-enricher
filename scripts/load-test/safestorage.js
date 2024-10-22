@@ -2,22 +2,20 @@ const axios = require('axios');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const SAFE_STORAGE_URL = 'http://localhost:8888/safe-storage/v1/files';
-
 async function computeSHA256(filePath) {
     const fileBuffer = fs.readFileSync(filePath);
     const hash = crypto.createHash('sha256').update(fileBuffer).digest();
     return hash.toString('base64');
 }
 
-async function uploadToSafeStorage(filePath, fileKeys, sha256, fileNumber) {
+async function uploadToSafeStorage(filePath, fileKeys, sha256, fileNumber, SAFE_STORAGE_URL) {
     for (let i = 0; i < fileNumber; i++) {
         console.log("Start appending file key");
-        fileKeys.push(await createFile(filePath, sha256));
+        fileKeys.push(await createFile(filePath, sha256, SAFE_STORAGE_URL));
     }
 }
 
-async function createFile(filePath, sha256) {
+async function createFile(filePath, sha256, SAFE_STORAGE_URL) {
     const cxId = "pn-test";
     const body = {
         contentType: "application/octet-stream",
