@@ -65,8 +65,8 @@ class Con020EnricherDaoTest {
         con020EnrichedEntity.setMetadataPresent(true);
         con020EnrichedEntity.setProductType("AR");
         con020EnrichedEntity.setStatusDescription("Affido conservato");
+        con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
         CON020EnrichedEntityMetadata metadata = new CON020EnrichedEntityMetadata();
-        metadata.setArchiveFileKey("archiveFileKey");
         metadata.setIun("iun");
         metadata.setEventTime(Instant.now());
         metadata.setGenerationTime(Instant.now());

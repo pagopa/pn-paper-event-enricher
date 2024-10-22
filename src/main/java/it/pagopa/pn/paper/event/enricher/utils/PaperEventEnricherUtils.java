@@ -83,6 +83,7 @@ public class PaperEventEnricherUtils {
         con020EnrichedEntity.setLastModificationTime(now);
         con020EnrichedEntity.setMetadataPresent(true);
         con020EnrichedEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
+        con020EnrichedEntity.setArchiveFileKey(archiveUri);
 
         CON020EnrichedEntityMetadata metadata = getCon020EnrichedEntityMetadata(payload, requestId, archiveUri);
         con020EnrichedEntity.setMetadata(metadata);
@@ -100,7 +101,6 @@ public class PaperEventEnricherUtils {
         metadata.setGenerationTime(payload.getAnalogMail().getStatusDateTime());
         metadata.setSendRequestId(payload.getAnalogMail().getRequestId());
         metadata.setRegisteredLetterCode(payload.getAnalogMail().getRegisteredLetterCode());
-        metadata.setArchiveFileKey(archiveUri);
         return metadata;
     }
 
@@ -165,6 +165,7 @@ public class PaperEventEnricherUtils {
         con020EnrichedEntity.setMetadataPresent(Boolean.FALSE);
         con020EnrichedEntity.setPrintedPdf(fileKeyWithSuffix);
         con020EnrichedEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
+        con020EnrichedEntity.setArchiveFileKey(archiveFileKey);
 
         return con020EnrichedEntity;
     }
