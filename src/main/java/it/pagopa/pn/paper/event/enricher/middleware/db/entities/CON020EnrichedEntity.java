@@ -25,6 +25,7 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     public static final String COL_PDF_DOCUMENT_TYPE = "pdfDocumentType";
     public static final String COL_PDF_SHA256 = "pdfSha256";
     public static final String COL_PDF_DATE = "pdfDate";
+    public static final String COL_ARCHIVEFILEKEY = "archiveFileKey";
 
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_METADATA)}))
     private CON020EnrichedEntityMetadata metadata;
@@ -42,6 +43,8 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     private String pdfSha256;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_PDF_DATE)}))
     private Instant pdfDate;
+    @Getter(onMethod = @__({@DynamoDbAttribute(COL_ARCHIVEFILEKEY)}))
+    private String archiveFileKey;
 
     public static String buildHashKeyForCon020EnrichedEntity(String archiveFileKey, String sendRequestId, String registeredLetterCode) {
         return ENRICHED_HASH_KEY_PREFIX + removePrefixFromArchiveFileKey(archiveFileKey) + "_" + sendRequestId + "_" + registeredLetterCode;
