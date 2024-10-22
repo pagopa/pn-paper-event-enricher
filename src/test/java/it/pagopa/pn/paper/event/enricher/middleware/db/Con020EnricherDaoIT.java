@@ -28,8 +28,9 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setMetadataPresent(true);
         con020EnrichedEntity.setProductType("AR");
         con020EnrichedEntity.setStatusDescription("Affido conservato");
+        con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
         CON020EnrichedEntityMetadata metadata = new CON020EnrichedEntityMetadata();
-        metadata.setArchiveFileKey("archiveFileKey");
+
         metadata.setIun("iun");
         metadata.setEventTime(Instant.now());
         metadata.setGenerationTime(Instant.now());
@@ -52,6 +53,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setSortKey(sortKey);
         con020EnrichedEntity.setLastModificationTime(Instant.now());
         con020EnrichedEntity.setRecordCreationTime(Instant.now());
+        con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
         con020EnrichedEntity.setTtl(Instant.now().plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020EnrichedEntity.setPrintedPdf("printedPdf");
         return con020EnrichedEntity;

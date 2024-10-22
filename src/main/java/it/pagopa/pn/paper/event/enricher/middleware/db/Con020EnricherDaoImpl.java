@@ -63,12 +63,14 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         stringBuilder.append(COL_ENTITY_NAME).append(" = :").append(COL_ENTITY_NAME).append(", ");
         if (PDF.equals(updateType)) {
             stringBuilder.append(COL_METADATA_PRESENT).append(QUERY_IF_NOT_EXISTS).append(COL_METADATA_PRESENT).append(",:").append(COL_METADATA_PRESENT).append("), ");
+            stringBuilder.append(COL_ARCHIVEFILEKEY).append(QUERY_IF_NOT_EXISTS).append(COL_ARCHIVEFILEKEY).append(",:").append(COL_ARCHIVEFILEKEY).append("), ");
             stringBuilder.append(COL_PRINTED_PDF).append(" = :").append(COL_PRINTED_PDF).append(", ");
             stringBuilder.append(COL_PDF_DATE).append(" = :").append(COL_PDF_DATE).append(", ");
             stringBuilder.append(COL_PDF_SHA256).append(" = :").append(COL_PDF_SHA256).append(", ");
             stringBuilder.append(COL_PDF_DOCUMENT_TYPE).append(" = :").append(COL_PDF_DOCUMENT_TYPE);
         } else if (METADATA.equals(updateType)) {
             stringBuilder.append(COL_METADATA_PRESENT).append(" = :").append(COL_METADATA_PRESENT).append(", ");
+            stringBuilder.append(COL_ARCHIVEFILEKEY).append(QUERY_IF_NOT_EXISTS).append(COL_ARCHIVEFILEKEY).append(",:").append(COL_ARCHIVEFILEKEY).append("), ");
             stringBuilder.append(COL_METADATA).append(" = :").append(COL_METADATA).append(", ");
             stringBuilder.append(COL_STATUS_DESCRIPTION).append(" = :").append(COL_STATUS_DESCRIPTION).append(", ");
             stringBuilder.append(COL_PRODUCT_TYPE).append(" = :").append(COL_PRODUCT_TYPE);
@@ -93,12 +95,14 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         attributeValueMap.put(":" + COL_ENTITY_NAME, AttributeValue.builder().s(entity.getEntityName()).build());
 
         if (PDF.equals(updateType)) {
+            attributeValueMap.put(":" + COL_ARCHIVEFILEKEY, AttributeValue.builder().s(entity.getArchiveFileKey()).build());
             attributeValueMap.put(":" + COL_METADATA_PRESENT, AttributeValue.builder().bool(false).build());
             attributeValueMap.put(":" + COL_PRINTED_PDF, AttributeValue.builder().s(entity.getPrintedPdf()).build());
             attributeValueMap.put(":" + COL_PDF_DATE, AttributeValue.builder().s(entity.getPdfDate().toString()).build());
             attributeValueMap.put(":" + COL_PDF_SHA256, AttributeValue.builder().s(entity.getPdfSha256()).build());
             attributeValueMap.put(":" + COL_PDF_DOCUMENT_TYPE, AttributeValue.builder().s(entity.getPdfDocumentType()).build());
         } else if (METADATA.equals(updateType)) {
+            attributeValueMap.put(":" + COL_ARCHIVEFILEKEY, AttributeValue.builder().s(entity.getArchiveFileKey()).build());
             attributeValueMap.put(":" + COL_METADATA_PRESENT, AttributeValue.builder().bool(true).build());
             attributeValueMap.put(":" + COL_METADATA, AttributeValue.builder().m(constructMetadataAttributeValuesMap(entity.getMetadata())).build());
             attributeValueMap.put(":" + COL_STATUS_DESCRIPTION, AttributeValue.builder().s(entity.getStatusDescription()).build());
@@ -120,7 +124,6 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         metadataMap.put(COL_SENDREQUESTID, AttributeValue.builder().s(metadata.getSendRequestId()).build());
         metadataMap.put(COL_REGISTEREDLETTERCORE, AttributeValue.builder().s(metadata.getRegisteredLetterCode()).build());
         metadataMap.put(COL_EVENTTIME, AttributeValue.builder().s(metadata.getEventTime().toString()).build());
-        metadataMap.put(COL_ARCHIVEFILEKEY, AttributeValue.builder().s(metadata.getArchiveFileKey()).build());
         return metadataMap;
 
     }

@@ -19,7 +19,6 @@ public class CON020EnrichedEntityMetadata {
     public static final String COL_SENDREQUESTID = "sendRequestId";
     public static final String COL_REGISTEREDLETTERCORE = "registeredLetterCode";
     public static final String COL_EVENTTIME = "eventTime";
-    public static final String COL_ARCHIVEFILEKEY = "archiveFileKey";
 
     private String iun;
     private Instant generationTime;
@@ -27,5 +26,4 @@ public class CON020EnrichedEntityMetadata {
     private String sendRequestId;
     private String registeredLetterCode;
     private Instant eventTime;
-    private String archiveFileKey;
 }
