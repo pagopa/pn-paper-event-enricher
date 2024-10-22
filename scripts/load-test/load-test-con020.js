@@ -8,8 +8,8 @@ const SAFE_STORAGE_URL = args[0] || 'http://localhost:8888/safe-storage/v1/files
 const profile = args[1] || 'dev';
 
 async function loadTestCon020() {
-    const bolFile = "bol-7000.bol";
-    const binFile = "attachment_example_completed_3pdf.zip"; //TODO: nel test di carico zip da 2,5gb
+    const bolFile = "bol-7000.bol"; //TODO cambia il nome
+    const binFile = "PN_EXTERNAL_LEGAL_FACTS-2f1465cb10754f9cb47de16f15d59cff.zip"; //TODO: nel test di carico zip da 2,5gb
     const inputCSV = "input-test.csv";
     const outputCSV = "duplicated_" + inputCSV;
     const fileKeys = [];
