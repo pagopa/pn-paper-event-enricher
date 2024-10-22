@@ -53,6 +53,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setSortKey(sortKey);
         con020EnrichedEntity.setLastModificationTime(Instant.now());
         con020EnrichedEntity.setRecordCreationTime(Instant.now());
+        con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
         con020EnrichedEntity.setTtl(Instant.now().plus(365, ChronoUnit.DAYS).toEpochMilli());
         con020EnrichedEntity.setPrintedPdf("printedPdf");
         return con020EnrichedEntity;
