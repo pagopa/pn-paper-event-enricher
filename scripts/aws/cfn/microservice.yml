@@ -292,6 +292,7 @@ Resources:
         ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
         ContainerEnvEntry15: !Sub 'PN_PAPEREVENTENRICHER_PDFTWOPAGESENABLED=${PdfTwoPagesEnabled}'
         MappedPaths: '/paper-event-enricher/*'
+        JavaToolOptions: '-XX:MaxDirectMemorySize=256m'
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
         VpcId: !Ref VpcId
