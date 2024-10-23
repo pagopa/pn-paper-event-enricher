@@ -14,8 +14,10 @@ async function processBatches(outputCSV, fileKeys, sha256, batchSize, profile) {
     const commandGetUrl = new GetQueueUrlCommand({ QueueName: QUEUE_NAME });
     const responseGetUrl = await sqsClient.send(commandGetUrl);
     queueUrl = responseGetUrl.QueueUrl;
+    const counter = 0;
 
     for (let i = 0; i < rows.length; i += batchSize) {
+        counter = counter + 1;
         const batch = rows.slice(i, i + batchSize);
         for (let j = 0; j < batch.length; j++) {
             const fileKey = fileKeys[j % fileKeys.length];
@@ -23,6 +25,7 @@ async function processBatches(outputCSV, fileKeys, sha256, batchSize, profile) {
             await processRow(fileKey, batch[j], sha256, queueUrl, sqsClient);
         }
         console.log(`Processed ${batchSize} rows`);
+        console.log("processed " + counter + " batch");
         console.log("Waiting 1 minute...");
         await new Promise(resolve => setTimeout(resolve, 300000));
     }
