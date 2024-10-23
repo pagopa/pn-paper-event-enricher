@@ -11,7 +11,7 @@
     "ArchiveQueueMaxNumberOfMessages": "3",
     "PdfTwoPagesEnabled": "true",
     "PaperEventEnricherEphemeralStorageValueGB": "200",
-    "PaperEventOutputQueueToEventBusPipeDesiredState": "RUNNING",
+    "PaperEventOutputQueueToEventBusPipeDesiredState": "STOPPED",
     "MinTasksNumber": "1",
     "MaxTasksNumber": "1"
   }
