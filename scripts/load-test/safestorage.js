@@ -9,10 +9,15 @@ async function computeSHA256(filePath) {
     // return hash.toString('base64');
 }
 
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function uploadToSafeStorage(filePath, fileKeys, sha256, fileNumber, SAFE_STORAGE_URL) {
     for (let i = 0; i < fileNumber; i++) {
         console.log("Start appending file key");
         fileKeys.push(await createFile(filePath, sha256, SAFE_STORAGE_URL));
+        await delay(3000);
     }
 }
 
@@ -55,11 +60,13 @@ async function uploadToS3PresignedUrl(filePath, uploadUrl, sha256, secret) {
                 'Content-Length': fileSize, // S3 richiede la lunghezza del file
                 'Content-Type': 'application/octet-stream', // Imposta il tipo di contenuto corretto
                 "x-amz-checksum-sha256": sha256,
-                "x-amz-meta-secret": secret
+                "x-amz-meta-secret": secret,
+                'Connection': 'close' // Disabilita il Keep-Alive
             },
             maxBodyLength: Infinity, // Evita limiti sulla dimensione del corpo della richiesta
             maxContentLength: Infinity // Evita limiti sulla dimensione del contenuto
-        });
+        })
+            .catch(err => console.log(err));
         console.log('Upload completato con successo:', uploadResponse.status);
         return uploadResponse;
     } catch (error) {
