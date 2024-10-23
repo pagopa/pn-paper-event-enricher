@@ -1,0 +1,17 @@
+{
+  "name": "erase_db",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.654.0",
+    "@aws-sdk/credential-provider-sso": "^3.654.0",
+    "@aws-sdk/lib-dynamodb": "^3.654.0"
+  }
+}
