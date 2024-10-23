@@ -42,6 +42,8 @@ Resources:
           AttributeType: "S"
         - AttributeName: "sortKey"
           AttributeType: "S"
+        - AttributeName: "archiveFileKey"
+          AttributeType: "S"
       KeySchema:
         - AttributeName: "hashKey"
           KeyType: "HASH"
