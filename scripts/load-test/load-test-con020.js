@@ -4,8 +4,8 @@ const { createCSVFromBOL, writeToCSV, duplicateCSVRows } = require('./csv.js');
 const { processBatches } = require('./sqs.js');
 
 const args = process.argv.slice(2);
-const SAFE_STORAGE_URL = args[0] || 'http://localhost:8888/safe-storage/v1/files';
-const profile = args[1] || 'dev';
+const SAFE_STORAGE_URL = args[0] || 'http://localhost:8889/safe-storage/v1/files';
+const profile = args[1] || 'sso_pn-core-dev';
 
 async function loadTestCon020() {
     const bolFile = "bol-7000.bol"; //TODO cambia il nome
