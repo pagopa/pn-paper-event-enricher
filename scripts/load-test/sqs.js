@@ -14,7 +14,7 @@ async function processBatches(outputCSV, fileKeys, sha256, batchSize, profile) {
     const commandGetUrl = new GetQueueUrlCommand({ QueueName: QUEUE_NAME });
     const responseGetUrl = await sqsClient.send(commandGetUrl);
     queueUrl = responseGetUrl.QueueUrl;
-    const counter = 0;
+    let counter = 0;
 
     for (let i = 0; i < rows.length; i += batchSize) {
         counter = counter + 1;
