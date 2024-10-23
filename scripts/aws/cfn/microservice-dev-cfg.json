@@ -13,6 +13,8 @@
     "PaperEventEnricherEphemeralStorageValueGB": "200",
     "PaperEventOutputQueueToEventBusPipeDesiredState": "STOPPED",
     "MinTasksNumber": "1",
-    "MaxTasksNumber": "1"
+    "MaxTasksNumber": "1",
+    "CpuValue": "2048",
+    "MemoryAmount": "4GB"
   }
 }
