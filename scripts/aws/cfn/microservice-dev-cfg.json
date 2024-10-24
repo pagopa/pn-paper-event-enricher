@@ -8,7 +8,7 @@
     "SafeStorageConnectionTimeoutMillis": "20000",
     "UpdateItemMaxConcurrentRequest": "100",
     "ArchiveQueueConcurrency": "1",
-    "ArchiveQueueMaxNumberOfMessages": "1",
+    "ArchiveQueueMaxNumberOfMessages": "4",
     "PdfTwoPagesEnabled": "true",
     "PaperEventEnricherEphemeralStorageValueGB": "200",
     "PaperEventOutputQueueToEventBusPipeDesiredState": "STOPPED",
