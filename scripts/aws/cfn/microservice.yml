@@ -648,10 +648,10 @@ Resources:
           ReturnData: False
         - Id: e1
           Expression: "IF(m1>=m2, m1, m2)"
-          Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metrix-max-age"
+          Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metric-max-age"
           ReturnData: false
         - Id: e2
-          Expression: !Sub "100*e1/${PaperEventEnrichmentAutoscalingBasePeriodSeconds})"
+          Expression: !Sub "100*e1/${PaperEventEnrichmentAutoscalingBasePeriodSeconds}"
           Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metric"
       AlarmActions:
         - !GetAtt PaperEventEnricherMicroservice.Outputs.ScaleUpPolicy
