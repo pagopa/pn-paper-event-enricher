@@ -157,7 +157,7 @@ Parameters:
 
   # Autoscaling parameters
   AutoscalingCheckPeriod:
-    Default: 60
+    Default: 3600 # 1 ora
     Type: Number
     Description: minimum autoscaling number of tasks
 
@@ -616,7 +616,7 @@ Resources:
       AlarmDescription: "Trigger scaling based on custom metric"
       DatapointsToAlarm: !Ref AutoscalingDataPointN
       ComparisonOperator: "GreaterThanOrEqualToThreshold"
-      Period: 3600 # 1 ora
+      Period: !Ref AutoscalingCheckPeriod
       EvaluationPeriods: !Ref AutoscalingDataPointM
       Threshold: 100
       Metrics:
@@ -628,7 +628,6 @@ Resources:
                   Value: !Ref "PaperArchivesQueueName"
               Namespace: "AWS/SQS"
               MetricName: "ApproximateAgeOfOldestMessage"
-            Period: !Ref AutoscalingCheckPeriod
             Stat: Average
           ReturnData: False
         - Id: m2
@@ -639,11 +638,10 @@ Resources:
                   Value: !Ref "PaperEventEnrichmentInputQueueName"
               Namespace: "AWS/SQS"
               MetricName: "ApproximateAgeOfOldestMessage"
-            Period: !Ref AutoscalingCheckPeriod
             Stat: Average
           ReturnData: False
         - Id: code
-          Expression: !Sub "IF(m1==0 || m2==0, 101, 100 * max(m1, m2)/172800)"
+          Expression: "100 * max(m1, m2)/172800)"
           Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metric"
           ReturnData: False
       AlarmActions:
