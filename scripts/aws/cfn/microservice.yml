@@ -159,7 +159,7 @@ Parameters:
   AutoscalingCheckPeriod:
     Default: 3600 # 1 ora
     Type: Number
-    Description: minimum autoscaling number of tasks
+    Description: Autoscaling period in seconds
 
   AutoscalingDataPointN:
     Default: 2
@@ -275,6 +275,11 @@ Parameters:
     Type: Number
     Default: 36000
     Description: 'Value for the stop timeout for the queue'
+
+  PaperEventEnrichmentAutoscalingBasePeriodSeconds:
+    Type: Number
+    Description: 'Value to use as base period for the custom metric (2 days)'
+    Default: 172800
 
 Resources:
 
@@ -616,7 +621,6 @@ Resources:
       AlarmDescription: "Trigger scaling based on custom metric"
       DatapointsToAlarm: !Ref AutoscalingDataPointN
       ComparisonOperator: "GreaterThanOrEqualToThreshold"
-      Period: !Ref AutoscalingCheckPeriod
       EvaluationPeriods: !Ref AutoscalingDataPointM
       Threshold: 100
       Metrics:
@@ -629,6 +633,7 @@ Resources:
               Namespace: "AWS/SQS"
               MetricName: "ApproximateAgeOfOldestMessage"
             Stat: Average
+            Period: !Ref AutoscalingCheckPeriod
           ReturnData: False
         - Id: m2
           MetricStat:
@@ -639,11 +644,11 @@ Resources:
               Namespace: "AWS/SQS"
               MetricName: "ApproximateAgeOfOldestMessage"
             Stat: Average
+            Period: !Ref AutoscalingCheckPeriod
           ReturnData: False
-        - Id: code
-          Expression: "100 * max(m1, m2)/172800)"
+        - Id: e1
+          Expression: !Sub "100 * max(m1, m2)/${PaperEventEnrichmentAutoscalingBasePeriodSeconds})"
           Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metric"
-          ReturnData: False
       AlarmActions:
         - !GetAtt PaperEventEnricherMicroservice.Outputs.ScaleUpPolicy
       OKActions:
