@@ -155,6 +155,22 @@ Parameters:
     Description: memory amount reserved to the task pod.
     AllowedValues: [ 2GB, 4GB, 6GB, 8GB ]
 
+  # Autoscaling parameters
+  AutoscalingCheckPeriod:
+    Default: 3600 # 1 ora
+    Type: Number
+    Description: Autoscaling period in seconds
+
+  AutoscalingDataPointN:
+    Default: 2
+    Type: Number
+    Description: activate when N datapoint on M
+
+  AutoscalingDataPointM:
+    Default: 2
+    Type: Number
+    Description: activate when N datapoint on M
+
   # Heath Check parameters
   HealthCheckInterval:
     Description: Seconds between two health check
@@ -260,6 +276,11 @@ Parameters:
     Default: 36000
     Description: 'Value for the stop timeout for the queue'
 
+  PaperEventEnrichmentAutoscalingBasePeriodSeconds:
+    Type: Number
+    Description: 'Value to use as base period for the custom metric (2 days)'
+    Default: 172800
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -277,6 +298,8 @@ Resources:
         UnhealthyThresholdCount: !Ref UnhealthyThresholdCount
         MinTasksNumber: !Ref MinTasksNumber
         MaxTasksNumber: !Ref MaxTasksNumber
+        AutoscalingDataPointN: !Ref AutoscalingDataPointN
+        AutoscalingDataPointM: !Ref AutoscalingDataPointM
         EfsFilesystem: !Ref FargateEFSFileSystemID
         MountEfs: !Ref MountEfs
         WireTapLogActivation: !Ref WireTapLogActivation
@@ -589,3 +612,44 @@ Resources:
       Parameters:
         PipeName: !Ref PaperEventOutputQueueToEventBusPipe
         AlarmSNSTopicArn: !Ref AlarmSNSTopicArn
+
+  #### Alarm for custom metric Autoscaling
+  AlarmCustomAutoscaling:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Sub "${ProjectName}-paper-event-enricher-autoscaling-custom"
+      AlarmDescription: "Trigger scaling based on custom metric"
+      DatapointsToAlarm: !Ref AutoscalingDataPointN
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      EvaluationPeriods: !Ref AutoscalingDataPointM
+      Threshold: 100
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value: !Ref "PaperArchivesQueueName"
+              Namespace: "AWS/SQS"
+              MetricName: "ApproximateAgeOfOldestMessage"
+            Stat: Average
+            Period: !Ref AutoscalingCheckPeriod
+          ReturnData: False
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value: !Ref "PaperEventEnrichmentInputQueueName"
+              Namespace: "AWS/SQS"
+              MetricName: "ApproximateAgeOfOldestMessage"
+            Stat: Average
+            Period: !Ref AutoscalingCheckPeriod
+          ReturnData: False
+        - Id: e1
+          Expression: !Sub "100 * max(m1, m2)/${PaperEventEnrichmentAutoscalingBasePeriodSeconds}"
+          Label: !Sub "${ProjectName}-paper-event-enricher-queue-custom-metric"
+      AlarmActions:
+        - !GetAtt PaperEventEnricherMicroservice.Outputs.ScaleUpPolicy
+      OKActions:
+        - !GetAtt PaperEventEnricherMicroservice.Outputs.ScaleDownPolicy
