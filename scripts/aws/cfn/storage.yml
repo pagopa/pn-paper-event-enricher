@@ -30,6 +30,16 @@ Parameters:
     Type: String
     Description: 'Where to send Logs'
 
+  VisibilityTimeoutForArchiveQueue:
+    Type: Number
+    Description: 'Visibility timeout for the archive queue'
+    Default: 900
+
+  QueueOldestAgeLimitCustom:
+    Type: Number
+    Description: 'Age limit for the oldest message in the queue'
+    Default: 172800
+
 Resources:
   PaperEventEnrichmentTable:
     Type: AWS::DynamoDB::Table
@@ -93,10 +103,11 @@ Resources:
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 2700 # 45 minuti
+        VisibilityTimeout: !Ref VisibilityTimeoutForArchiveQueue
         MaxReceiveCount: 10
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
+        QueueOldestAgeLimit: !Ref QueueOldestAgeLimitCustom
 
   EnrichedEventsQueue:
     Type: AWS::CloudFormation::Stack
