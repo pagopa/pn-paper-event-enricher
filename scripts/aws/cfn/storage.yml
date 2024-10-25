@@ -30,6 +30,7 @@ Parameters:
     Type: String
     Description: 'Where to send Logs'
 
+
 Resources:
   PaperEventEnrichmentTable:
     Type: AWS::DynamoDB::Table
@@ -93,10 +94,11 @@ Resources:
       Parameters:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
-        VisibilityTimeout: 2700 # 45 minuti
+        VisibilityTimeout: 900
         MaxReceiveCount: 10
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
+        QueueOldestAgeLimit: 172800
 
   EnrichedEventsQueue:
     Type: AWS::CloudFormation::Stack
