@@ -87,7 +87,7 @@ Parameters:
     Type: String
     Description: Arn of the queue where paper archives are stored
 
-  PaperEventEnrichmentInputQueueName:
+  PnPaperEventEnricherInputQueueName:
     Type: String
     Description: Name of the queue where paper event enrichments are stored
 
@@ -307,7 +307,7 @@ Resources:
         ContainerEnvEntry1: !Sub 'AWS_REGIONCODE=${AWS::Region}'
         ContainerEnvEntry2: !Sub 'PN_PAPEREVENTENRICHER_DAO_PAPEREVENTENRICHMENTTABLE=${PaperEventEnrichmentTableName}'
         ContainerEnvEntry3: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPERARCHIVESQUEUENAME=${PaperArchivesQueueName}'
-        ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PaperEventEnrichmentInputQueueName}'
+        ContainerEnvEntry4: !Sub 'PN_PAPEREVENTENRICHER_SQS_PAPEREVENTENRICHMENTINPUTQUEUENAME=${PnPaperEventEnricherInputQueueName}'
         ContainerEnvEntry5: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEBASEURL=${SandboxSafeStorageBaseUrl}'
         ContainerEnvEntry6: !Sub 'PN_PAPEREVENTENRICHER_CXID=${PaperEventEnrichmentCxId}'
         ContainerEnvEntry7: !Sub 'PN_PAPEREVENTENRICHER_SAFESTORAGEUPLOADMAXCONCURRENTREQUEST=${SafeStorageUploadMaxConcurrentRequest}'
@@ -333,7 +333,7 @@ Resources:
         EcsLogGroup: !Ref EcsLogGroup
         LogAlarmStrategyV1: !Ref LogAlarmStrategy
         AutoscalingStrategy: 'SQS'
-        AutoscalingQueueName: !Ref PaperEventEnrichmentInputQueueName
+        AutoscalingQueueName: !Ref PnPaperEventEnricherInputQueueName
         AutoscalingThreshold: !Ref PaperEventEnrichmentAutoscalingThreshold
         EphemeralStorageValueGB: !Ref PaperEventEnricherEphemeralStorageValueGB
 
@@ -640,7 +640,7 @@ Resources:
             Metric:
               Dimensions:
                 - Name: QueueName
-                  Value: !Ref "PaperEventEnrichmentInputQueueName"
+                  Value: !Ref "PnPaperEventEnricherInputQueueName"
               Namespace: "AWS/SQS"
               MetricName: "ApproximateAgeOfOldestMessage"
             Stat: Average
