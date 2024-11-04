@@ -496,7 +496,7 @@ Resources:
             "entityName": <$.data.dynamodb.NewImage.entityName.S>,
             "recordCreationTime": <$.data.dynamodb.NewImage.recordCreationTime.S>,
             "lastModificationTime": <$.data.dynamodb.NewImage.lastModificationTime.S>,
-            "archiveFileKey": <$.data.dynamodb.NewImage.metadata.M.archiveFileKey.S>,
+            "archiveFileKey": <$.data.dynamodb.NewImage.archiveFileKey.S>,
             "eventTime": <$.data.dynamodb.NewImage.metadata.M.eventTime.S>,
             "generationTime": <$.data.dynamodb.NewImage.metadata.M.generationTime.S>,
             "iun": <$.data.dynamodb.NewImage.metadata.M.iun.S>,
