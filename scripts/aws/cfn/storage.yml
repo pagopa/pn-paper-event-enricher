@@ -95,7 +95,7 @@ Resources:
         QueueName: !Sub '${ProjectName}-paper-archives'
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
         VisibilityTimeout: 900
-        MaxReceiveCount: 10
+        MaxReceiveCount: 2
         DelaySeconds: 1
         MessageRetentionPeriod: 1209600
         QueueOldestAgeLimit: 172800
