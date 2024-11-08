@@ -80,7 +80,7 @@ public class FileService {
             return findSignedData(zipFile.getInputStream(zipArchiveEntry))
                     .flatMap(input -> writeInputStreamToFile(input, newFile))
                     .thenReturn(newFile);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error during file extraction from zip file: {}", e.getMessage(), e);
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_WRITE_ON_TMP_FILE);
         }

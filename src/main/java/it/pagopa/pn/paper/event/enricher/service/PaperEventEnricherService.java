@@ -104,7 +104,7 @@ public class PaperEventEnricherService {
                     .map(CON020BaseEntity::getHashKey)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable));
         }
-        log.error("[{}] is not present in file bol", fileDetail.getFilename());
+        log.fatal("[{}] is not present in file bol", fileDetail.getFilename());
         return Mono.just(fileDetail.getFilename());
     }
 }
