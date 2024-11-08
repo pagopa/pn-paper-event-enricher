@@ -8,7 +8,7 @@
 		<relativePath />
 	</parent>
 	<artifactId>pn-paper-event-enricher</artifactId>
-	<version>1.0.3-SNAPSHOT</version>
+	<version>1.0.3</version>
 	<name>pn-paper-event-enricher</name>
 	<description>Pn paper event enricher microservice</description>
 	<scm>
