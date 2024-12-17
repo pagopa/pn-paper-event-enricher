@@ -111,7 +111,7 @@ Resources:
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
         VisibilityTimeout: 60
         MaxReceiveCount: 10
-        DelaySeconds: 1
+        DelaySeconds: 600
         MessageRetentionPeriod: 1209600
 
   PaperEventEnrichmentLogGroup:
