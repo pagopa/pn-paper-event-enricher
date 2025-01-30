@@ -30,6 +30,11 @@ Parameters:
     Type: String
     Description: 'Where to send Logs'
 
+  EnrichedEventsQueueDelaySeconds:
+    Type: Number
+    Description: 'Delay seconds for pn-paper-event-enrichment-output queue'
+    Default: 1
+
 
 Resources:
   PaperEventEnrichmentTable:
@@ -111,7 +116,7 @@ Resources:
         AlarmSNSTopicName: !Ref AlarmSNSTopicName
         VisibilityTimeout: 60
         MaxReceiveCount: 10
-        DelaySeconds: 1
+        DelaySeconds: !Ref EnrichedEventsQueueDelaySeconds
         MessageRetentionPeriod: 1209600
 
   PaperEventEnrichmentLogGroup:
