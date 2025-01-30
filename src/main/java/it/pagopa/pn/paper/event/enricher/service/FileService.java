@@ -14,7 +14,6 @@ import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.stereotype.Component;
@@ -200,7 +199,7 @@ public class FileService {
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, null).toPath();
+            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix).toPath();
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }
