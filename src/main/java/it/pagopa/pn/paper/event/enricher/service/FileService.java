@@ -21,7 +21,6 @@ import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -236,10 +235,21 @@ public class FileService {
     public void deleteFileTmp(Path path) {
         String fileName = path.getFileName().toString();
         try {
+            closeInputStream(path);
             Files.deleteIfExists(path);
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DELETING_TMP_FILE);
         }
         log.info("File {} deleted", fileName);
     }
+
+    private void closeInputStream(Path path) {
+        try (FileInputStream ignored = new FileInputStream(path.toFile())) {
+            log.trace("Closing tmp file: {}", path.getFileName().toString());
+        } catch (IOException e) {
+            log.debug("Closing in error tmp file: {}", path.getFileName().toString(), e);
+        }
+
+    }
+
 }
