@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
@@ -235,7 +236,7 @@ public class FileService {
     public void deleteFileTmp(Path path) {
         String fileName = path.getFileName().toString();
         try {
-            closeInputStream(path);
+            forceCloseFileDescriptors(path);
             Files.deleteIfExists(path);
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(),500, ERROR_DELETING_TMP_FILE);
@@ -243,13 +244,16 @@ public class FileService {
         log.info("File {} deleted", fileName);
     }
 
-    private void closeInputStream(Path path) {
-        try (FileInputStream ignored = new FileInputStream(path.toFile())) {
-            log.trace("Closing tmp file: {}", path.getFileName().toString());
-        } catch (IOException e) {
-            log.debug("Closing in error tmp file: {}", path.getFileName().toString(), e);
-        }
+    private void forceCloseFileDescriptors(Path path) {
+        try {
+            // Forza la chiusura di qualsiasi stream o riferimento al file
+            RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r");
+            raf.close();
 
+            log.trace("Closed file descriptor for {}", path.getFileName().toString());
+        } catch (IOException e) {
+            log.debug("Error closing file descriptor for {}", path.getFileName().toString(), e);
+        }
     }
 
 }
