@@ -200,7 +200,8 @@ public class FileService {
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, null).toPath();
+            ClassPathResource classPathResource = new ClassPathResource("/");
+            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, classPathResource.getFile()).toPath();
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }
