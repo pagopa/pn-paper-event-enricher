@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SAFE_STORAGE_PREFIX;
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.*;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
 import static it.pagopa.pn.paper.event.enricher.utils.P7mUtils.findSignedData;
@@ -200,7 +199,7 @@ public class FileService {
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return Files.createTempFile(TMP_FILE_PREFIX + prefix.replace(SAFE_STORAGE_PREFIX, ""), suffix);
+            return Files.createTempFile(TMP_FILE_PREFIX + prefix, suffix);
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }
