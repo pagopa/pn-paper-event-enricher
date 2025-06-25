@@ -199,7 +199,7 @@ public class FileService {
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return Files.createTempFile(TMP_FILE_PREFIX + prefix, suffix);
+            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix).toPath();
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }
