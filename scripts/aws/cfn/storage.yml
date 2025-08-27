@@ -35,6 +35,9 @@ Parameters:
     Description: 'Delay seconds for pn-paper-event-enrichment-output queue'
     Default: 1
 
+  LogRetention:
+    Type: Number
+    Default: 14
 
 Resources:
   PaperEventEnrichmentTable:
@@ -127,6 +130,7 @@ Resources:
       TemplateURL: !Sub "${TemplateBucketBaseUrl}/fragments/log-group.yaml"
       Parameters:
         LogGroupName: !Sub '${ProjectName}-paper-event-enricher'
+        LogGroupRetention: !Ref LogRetention
         LogsKinesisSourceStreamArn: !Ref LogsKinesisSourceStreamArn
 
 Outputs:
