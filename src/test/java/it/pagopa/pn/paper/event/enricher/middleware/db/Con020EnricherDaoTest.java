@@ -1,14 +1,12 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
-import it.pagopa.pn.paper.event.enricher.config.BaseTest;
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reactor.test.StepVerifier;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
@@ -33,10 +31,10 @@ import static org.mockito.Mockito.when;
 class Con020EnricherDaoTest {
 
     private Con020EnricherDaoImpl con020EnricherDao;
-    @MockBean
+    @MockitoBean
     private DynamoDbAsyncClient dynamoDbAsyncClient;
 
-    @MockBean
+    @MockitoBean
     private DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient;
 
     DynamoDbAsyncTable<CON020ArchiveEntity> tableAsync;

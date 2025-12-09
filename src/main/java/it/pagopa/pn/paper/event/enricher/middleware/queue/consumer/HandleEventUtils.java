@@ -1,7 +1,8 @@
 package it.pagopa.pn.paper.event.enricher.middleware.queue.consumer;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.MessageHeaders;
+
+import java.util.Map;
 
 @Slf4j
 public class HandleEventUtils {
@@ -10,7 +11,7 @@ public class HandleEventUtils {
     private HandleEventUtils() {
     }
 
-    public static void handleException(MessageHeaders headers, Throwable t) {
+    public static void handleException(Map<String, Object> headers, Throwable t) {
         if (headers != null) {
             log.error(PAPER_EVENT_ASYNC + "Generic exception ex= {}", t.getMessage(), t);
         } else {

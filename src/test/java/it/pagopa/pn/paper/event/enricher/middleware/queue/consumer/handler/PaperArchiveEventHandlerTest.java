@@ -12,23 +12,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.MDC;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
 import reactor.core.publisher.Mono;
 
+import java.util.HashMap;
+
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class PaperArchiveEventHandlerTest {
     @Mock
     private PaperEventEnricherService paperEventEnricherService;
-
-    @Mock
-    private Message<PaperArchiveEvent.Payload> message;
-
-    @Mock
-    private PaperArchiveEvent.Payload payload;
 
     @InjectMocks
     private PaperArchiveEventHandler paperArchiveEventHandler;
@@ -46,16 +39,10 @@ class PaperArchiveEventHandlerTest {
                 .archiveStatus("archiveStatus")
                 .build();
 
-        PaperArchiveEvent paperArchiveEvent =PaperArchiveEvent.builder()
-                .payload(inputMessage).build();
-
-        when(message.getPayload()).thenReturn(paperArchiveEvent.getPayload());
-       when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
-
         when(paperEventEnricherService.handlePaperEventEnricherEvent(any())).thenReturn(Mono.empty());
 
         // When
-        paperArchiveEventHandler.paperArchiveConsumer().accept(message);
+        paperArchiveEventHandler.paperArchiveConsumer(inputMessage, new HashMap<>());
 
         Assertions.assertEquals("archiveFileKey", MDC.get(MDCUtils.MDC_PN_CTX_REQUEST_ID));
     }
@@ -63,23 +50,15 @@ class PaperArchiveEventHandlerTest {
     @Test
     void shouldHandleMessageWithError() {
 
-
         PaperArchiveEvent.Payload inputMessage = PaperArchiveEvent.Payload.builder()
                 .archiveFileKey("archiveFileKey")
                 .archiveStatus("archiveStatus")
                 .build();
 
-        PaperArchiveEvent paperArchiveEvent =PaperArchiveEvent.builder()
-                .payload(inputMessage).build();
-
-        when(message.getPayload()).thenReturn(paperArchiveEvent.getPayload());
-        when(message.getHeaders()).thenReturn(mock(MessageHeaders.class));
-
         when(paperEventEnricherService.handlePaperEventEnricherEvent(any())).thenReturn(Mono.error(new PaperEventEnricherException("error", 400, "error")));
 
-        Executable executable = () -> paperArchiveEventHandler.paperArchiveConsumer().accept(message);
+        Executable executable = () -> paperArchiveEventHandler.paperArchiveConsumer(inputMessage, new HashMap<>());
         Assertions.assertThrows(PaperEventEnricherException.class, executable);
-
     }
 
 }
