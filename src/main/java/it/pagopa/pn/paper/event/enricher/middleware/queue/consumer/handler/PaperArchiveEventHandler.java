@@ -30,6 +30,7 @@ public class PaperArchiveEventHandler {
     @SqsListener(value = "${pn.paper-event-enricher.sqs.paper-archives-queue-name}",
             maxConcurrentMessages = "${pn.paper-event-enricher.sqs.archive-queue-concurrency}",
             maxMessagesPerPoll = "${pn.paper-event-enricher.sqs.archive-queue-max-number-of-messages}",
+            factory = "customSqsListenerContainerFactory",
             acknowledgementMode = SqsListenerAcknowledgementMode.ON_SUCCESS)
     public void paperArchiveConsumer(@Payload PaperArchiveEvent.Payload payload, @Headers Map<String, Object> headers) {
         Instant start = Instant.now();

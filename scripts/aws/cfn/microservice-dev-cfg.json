@@ -15,6 +15,7 @@
     "MinTasksNumber": "1",
     "MaxTasksNumber": "6",
     "CpuValue": "2048",
+    "ArchiveQueueStopTimeoutMillis": "36000",
     "MemoryAmount": "4GB"
   }
 }
