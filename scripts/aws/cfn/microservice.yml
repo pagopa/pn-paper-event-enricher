@@ -236,7 +236,7 @@ Parameters:
 
   InputQueueConcurrency:
     Type: Number
-    Default: 1
+    Default: 10
     Description: 'Number of concurrent messages to process from the input queue'
 
   InputQueueMaxNumberOfMessages:
@@ -251,7 +251,7 @@ Parameters:
 
   ArchiveQueueMaxNumberOfMessages:
     Type: Number
-    Default: 10
+    Default: 1
     Description: 'Maximum number of messages to process from the archive queue'
 
   PdfTwoPagesEnabled:
