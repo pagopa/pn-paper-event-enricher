@@ -28,8 +28,8 @@ public class PaperInputEventHandler {
     private static final String HANDLER_REQUEST = "paperInputConsumer";
 
     @SqsListener(value = "${pn.paper-event-enricher.sqs.paper-event-enrichment-input-queue-name}",
-            maxConcurrentMessages = "${spring.cloud.aws.sqs.paperInputConsumer.max-concurrent-messages}",
-            maxMessagesPerPoll = "${spring.cloud.aws.sqs.paperInputConsumer.max-messages-per-poll}",
+            maxConcurrentMessages = "${pn.paper-event-enricher.sqs.input-queue-concurrency}",
+            maxMessagesPerPoll = "${pn.paper-event-enricher.sqs.input-queue-max-number-of-messages}",
             acknowledgementMode = SqsListenerAcknowledgementMode.ON_SUCCESS)
     public void paperInputConsumer(@Payload PaperEventEnricherInputEvent.Payload payload, @Headers Map<String, Object> headers) {
         Instant start = Instant.now();

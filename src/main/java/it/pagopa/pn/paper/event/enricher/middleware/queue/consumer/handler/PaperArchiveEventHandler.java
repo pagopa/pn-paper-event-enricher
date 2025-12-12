@@ -28,9 +28,8 @@ public class PaperArchiveEventHandler {
     private static final String HANDLER_REQUEST = "paperArchiveConsumer";
 
     @SqsListener(value = "${pn.paper-event-enricher.sqs.paper-archives-queue-name}",
-            maxConcurrentMessages = "${spring.cloud.aws.sqs.paperArchiveConsumer.max-concurrent-messages}",
-            maxMessagesPerPoll = "${spring.cloud.aws.sqs.paperArchiveConsumer.max-messages-per-poll}",
-            pollTimeoutSeconds = "${spring.cloud.aws.sqs.paperArchiveConsumer.poll-timeout-seconds}",
+            maxConcurrentMessages = "${pn.paper-event-enricher.sqs.archive-queue-concurrency}",
+            maxMessagesPerPoll = "${pn.paper-event-enricher.sqs.archive-queue-max-number-of-messages}",
             acknowledgementMode = SqsListenerAcknowledgementMode.ON_SUCCESS)
     public void paperArchiveConsumer(@Payload PaperArchiveEvent.Payload payload, @Headers Map<String, Object> headers) {
         Instant start = Instant.now();
