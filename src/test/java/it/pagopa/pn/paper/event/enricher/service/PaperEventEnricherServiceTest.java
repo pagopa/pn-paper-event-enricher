@@ -162,7 +162,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(fileService.downloadFile("validArchiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
         FileDetail fileDetail = FileDetail.builder().fileKey("fileKey").filename("filename.pdf").build();
-        Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any())).thenReturn(Flux.just(fileDetail));
+        Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any(), any())).thenReturn(Flux.just(fileDetail));
         doNothing().when(fileService).deleteFileTmp(any());
         Mockito.when(con020EnricherDao.updatePrintedPdf(any())).thenReturn(Mono.just(new CON020EnrichedEntity()));
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
@@ -221,7 +221,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
         Mockito.when(fileService.downloadFile("archiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
-        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0))).thenReturn(Flux.empty());
+        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0), "archiveFileKey")).thenReturn(Flux.empty());
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.error(new RuntimeException("Update error")));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);

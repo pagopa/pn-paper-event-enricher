@@ -69,7 +69,7 @@ class PnSafeStorageClientTest {
     void getFile_success() {
         FileDownloadResponse fileDownloadResponse = new FileDownloadResponse();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile("fileKey", "cxId", false))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false, false))
                 .thenReturn(Mono.just(fileDownloadResponse));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");
@@ -82,7 +82,7 @@ class PnSafeStorageClientTest {
     @Test
     void getFile_notFound() {
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile("fileKey", "cxId", false))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false, false))
                 .thenReturn(Mono.error(new WebClientResponseException(404, "Not Found", null, null, null)));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");
@@ -96,7 +96,7 @@ class PnSafeStorageClientTest {
     @Test
     void getFile_otherError() {
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileDownloadApi.getFile("fileKey", "cxId", false))
+        when(fileDownloadApi.getFile("fileKey", "cxId", false, false))
                 .thenReturn(Mono.error(new WebClientResponseException(500, "Internal Server Error", null, null, null)));
 
         Mono<FileDownloadResponse> result = pnSafeStorageClient.getFile("fileKey");

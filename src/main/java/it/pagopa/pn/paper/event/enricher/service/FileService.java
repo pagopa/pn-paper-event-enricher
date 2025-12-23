@@ -99,13 +99,13 @@ public class FileService {
         }
     }
 
-    public Flux<FileDetail> extractFileFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
+    public Flux<FileDetail> extractFileFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter, String archiveFileKey) {
         return retrieveFileType(path)
                 .flatMapMany(fileTypeEnum -> {
                     if (ZIP.equals(fileTypeEnum)) {
-                        return extractZipFilesFromArchive(path, indexDataMap, fileCounter);
+                        return extractZipFilesFromArchive(path, indexDataMap, fileCounter, archiveFileKey);
                     } else if (SEVENZIP.equals(fileTypeEnum)) {
-                        return extract7ZipFilesFromArchive(path, indexDataMap, fileCounter);
+                        return extract7ZipFilesFromArchive(path, indexDataMap, fileCounter, archiveFileKey);
                     } else {
                         return Flux.error(new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 500, UNSUPPORTED_FILE_TYPE));
                     }
@@ -113,7 +113,7 @@ public class FileService {
 
     }
 
-    public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
+    public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter, String archiveFileKey) {
         try {
             ZipFile zipFile = ZipFile.builder().setFile(path.toFile()).get();
             List<ZipArchiveEntry> entries = Collections.list(zipFile.getEntries());
@@ -121,7 +121,7 @@ public class FileService {
             return Flux.fromIterable(entries)
                     .flatMap(zipArchiveEntry -> {
                         try {
-                            return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
+                            return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName(), archiveFileKey);
                         } catch (IOException e) {
                             throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
                         }
@@ -133,7 +133,7 @@ public class FileService {
         }
     }
 
-    public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter) {
+    public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter, String archiveFileKey) {
         try {
             SevenZFile sevenZFile = SevenZFile.builder().setFile(path.toFile()).get();
             List<SevenZArchiveEntry> entries = (List<SevenZArchiveEntry>) sevenZFile.getEntries();
@@ -141,7 +141,7 @@ public class FileService {
             return Flux.fromIterable(entries)
                     .flatMap(zipArchiveEntry -> {
                         try {
-                            return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName());
+                            return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName(), archiveFileKey);
                         } catch (IOException e) {
                             throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
                         }
@@ -153,7 +153,7 @@ public class FileService {
         }
     }
 
-    private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name) {
+    private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name, String archiveFileKey) {
         if (name.endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
             indexDataMap.putAll(parseBol(getContent(zipInputStream, name)));
             log.info(DATA_MAP_WITH_ENTRY, name, indexDataMap.size());
@@ -165,7 +165,7 @@ public class FileService {
                 content = cutPdf(content, pnPaperEventEnricherConfig.getPdfPageSize());
             }
             String sha256 = Sha256Handler.computeSha256(content);
-            return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256)
+            return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, archiveFileKey)
                     .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());
         } else {
             return Mono.just(FileDetail.builder().filename(name).build());

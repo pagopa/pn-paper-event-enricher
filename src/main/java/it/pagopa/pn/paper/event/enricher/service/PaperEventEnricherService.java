@@ -82,7 +82,7 @@ public class PaperEventEnricherService {
     }
 
     private Flux<String> extractUploadAndUpdates(Path path, Map<String, IndexData> indexDataMap, String archiveFileKey, FileCounter fileCounter){
-        return fileService.extractFileFromArchive(path, indexDataMap, fileCounter)
+        return fileService.extractFileFromArchive(path, indexDataMap, fileCounter, archiveFileKey)
                 .collectList()
                 .doFinally(fileDetails -> fileService.deleteFileTmp(path))
                 .flatMapMany(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey, fileCounter));

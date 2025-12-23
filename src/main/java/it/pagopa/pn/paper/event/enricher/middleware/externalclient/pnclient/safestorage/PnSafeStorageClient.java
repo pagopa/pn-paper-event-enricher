@@ -43,7 +43,7 @@ public class PnSafeStorageClient extends BaseClient {
 
     public Mono<FileDownloadResponse> getFile(String fileKey) {
         log.debug("Req params : {}", fileKey);
-        return fileDownloadApi.getFile(fileKey, this.pnPaperEventEnricherConfig.getCxId(), false)
+        return fileDownloadApi.getFile(fileKey, this.pnPaperEventEnricherConfig.getCxId(), false, false)
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.error(ex.getResponseBodyAsString());
                     if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
