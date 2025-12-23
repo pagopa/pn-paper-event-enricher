@@ -95,6 +95,18 @@ Parameters:
     Type: String
     Description: Arn of the queue where paper event enrichments are stored
 
+  SafeStorageToPaperEventEnricherQueueName:
+    Type: String
+    Description: Name of the queue where safeStorage to paper event enricher are stored
+
+  SafeStorageToPaperEventEnricherQueueArn:
+    Type: String
+    Description: Arn of the queue where safeStorage to paper event enricher are stored
+
+  SafeStorageToPaperEventEnricherQueueURL:
+    Type: String
+    Description: safestorage-to-paper-event-enricher queue URL
+
   PaperEventEnrichmentCxId:
     Type: String
     Description: 'CxId of the paper event enricher'
@@ -320,6 +332,7 @@ Resources:
         ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
         ContainerEnvEntry15: !Sub 'PN_PAPEREVENTENRICHER_PDFTWOPAGESENABLED=${PdfTwoPagesEnabled}'
         ContainerEnvEntry16: !Sub 'PN_PAPEREVENTENRICHER_ARCHIVEQUEUESTOPTIMEOUT=${ArchiveQueueStopTimeoutMillis}'
+        ContainerEnvEntry17: !Sub 'PN_PAPEREVENTENRICHER_SQS_SAFESTORAGETOPAPEREVENTENRICHERQUEUENAME=${SafeStorageToPaperEventEnricherQueueName}'
         MappedPaths: '/paper-event-enricher/*'
         JavaToolOptions: '-XX:MaxDirectMemorySize=1024m'
         ECSClusterName: !Ref ECSClusterName
@@ -365,6 +378,7 @@ Resources:
             Resource:
               - !Ref PaperArchivesQueueARN
               - !Ref PnPaperEventEnricherInputQueueARN
+              - !Ref SafeStorageToPaperEventEnricherQueueArn
 
   # CloudWatch dashboard
   PaperEventEnricherMicroserviceCloudWatchDashboard:
