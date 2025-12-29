@@ -2,15 +2,20 @@ package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
-import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.*;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
+
+import java.util.Map;
 
 @Slf4j
 public abstract class BaseDao<T> {
@@ -29,6 +34,18 @@ public abstract class BaseDao<T> {
         this.tableName = tableName;
     }
 
+    protected Mono<Page<T>> queryByIndex(String indexName, Key key, Integer limit, Map<String, AttributeValue> lastEvaluatedKey) {
+        var queryBuilder = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(key))
+                .limit(limit);
+
+        if(!CollectionUtils.isEmpty(lastEvaluatedKey)){
+            queryBuilder.exclusiveStartKey(lastEvaluatedKey);
+        }
+
+        return Mono.from(tableAsync.index(indexName).query(queryBuilder.build()));
+    }
+
     protected Mono<T> updateItem(UpdateItemEnhancedRequest.Builder<T> request, String archiveFileKey) {
         return Mono.fromFuture(this.tableAsync.updateItem(request.build()))
                 .onErrorResume(ConditionalCheckFailedException.class, e -> {
@@ -38,10 +55,9 @@ public abstract class BaseDao<T> {
                 });
     }
 
-    protected Mono<T> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
+    protected Mono<UpdateItemResponse> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
         UpdateItemRequest updateItemRequest = updateItemRequestBuilder.tableName(tableName).build();
-        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest))
-                .then(Mono.empty());
+        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest));
     }
 
     protected Mono<T> putItem(PutItemEnhancedRequest<T> request, String archiveFileKey) {

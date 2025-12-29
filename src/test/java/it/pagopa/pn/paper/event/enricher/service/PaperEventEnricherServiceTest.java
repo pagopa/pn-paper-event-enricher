@@ -10,6 +10,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEven
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
 import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
+import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -22,9 +23,12 @@ import reactor.test.StepVerifier;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity.COL_ARCHIVE_FILE_KEY;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.BIN;
+import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.SAFE_STORAGE;
 import static org.mockito.Mockito.*;
 
 class PaperEventEnricherServiceTest {
@@ -62,7 +66,7 @@ class PaperEventEnricherServiceTest {
         CON020EnrichedEntity enricherEntity = mock(CON020EnrichedEntity.class);
 
         Mockito.when(con020ArchiveDao.putIfAbsent(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(archiveEntity));
-        Mockito.when(con020EnricherDao.updateMetadata(any(CON020EnrichedEntity.class))).thenReturn(Mono.just(enricherEntity));
+        Mockito.when(con020EnricherDao.update(any(CON020EnrichedEntity.class), eq(UpdateTypeEnum.METADATA))).thenReturn(Mono.just(enricherEntity));
 
         Mono<Void> result = paperEventEnricherService.handleInputEventMessage(inputMessage);
 
@@ -81,7 +85,7 @@ class PaperEventEnricherServiceTest {
                 .build();
 
         Mockito.when(con020ArchiveDao.putIfAbsent(any(CON020ArchiveEntity.class))).thenReturn(Mono.error(new PaperEventEnricherException("Test exception", 400, "exception")));
-        Mockito.when(con020EnricherDao.updateMetadata(any(CON020EnrichedEntity.class))).thenReturn(Mono.just(new CON020EnrichedEntity()));
+        Mockito.when(con020EnricherDao.update(any(CON020EnrichedEntity.class), eq(UpdateTypeEnum.METADATA))).thenReturn(Mono.just(new CON020EnrichedEntity()));
 
         Mono<Void> result = paperEventEnricherService.handleInputEventMessage(inputMessage);
 
@@ -102,7 +106,7 @@ class PaperEventEnricherServiceTest {
         CON020ArchiveEntity archiveEntity = mock(CON020ArchiveEntity.class);
 
         Mockito.when(con020ArchiveDao.putIfAbsent(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(archiveEntity));
-        Mockito.when(con020EnricherDao.updateMetadata(any(CON020EnrichedEntity.class))).thenReturn(Mono.error(new RuntimeException("Test exception")));
+        Mockito.when(con020EnricherDao.update(any(CON020EnrichedEntity.class), eq(UpdateTypeEnum.METADATA))).thenReturn(Mono.error(new RuntimeException("Test exception")));
 
         Mono<Void> result = paperEventEnricherService.handleInputEventMessage(inputMessage);
 
@@ -123,7 +127,7 @@ class PaperEventEnricherServiceTest {
 
         CON020ArchiveEntity archiveEntity = mock(CON020ArchiveEntity.class);
         Mockito.when(con020ArchiveDao.putIfAbsent(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(archiveEntity));
-        Mockito.when(con020EnricherDao.updateMetadata(any(CON020EnrichedEntity.class))).thenReturn(Mono.just(new CON020EnrichedEntity()));
+        Mockito.when(con020EnricherDao.update(any(CON020EnrichedEntity.class), eq(UpdateTypeEnum.METADATA))).thenReturn(Mono.just(new CON020EnrichedEntity()));
 
         Mono<Void> result = paperEventEnricherService.handleInputEventMessage(inputMessage);
 
@@ -143,7 +147,7 @@ class PaperEventEnricherServiceTest {
 
         CON020ArchiveEntity archiveEntity = mock(CON020ArchiveEntity.class);
         Mockito.when(con020ArchiveDao.putIfAbsent(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(archiveEntity));
-        Mockito.when(con020EnricherDao.updateMetadata(any(CON020EnrichedEntity.class))).thenReturn(Mono.just(new CON020EnrichedEntity()));
+        Mockito.when(con020EnricherDao.update(any(CON020EnrichedEntity.class), eq(UpdateTypeEnum.METADATA))).thenReturn(Mono.just(new CON020EnrichedEntity()));
 
         Mono<Void> result = paperEventEnricherService.handleInputEventMessage(inputMessage);
 
@@ -164,7 +168,7 @@ class PaperEventEnricherServiceTest {
         FileDetail fileDetail = FileDetail.builder().fileKey("fileKey").filename("filename.pdf").build();
         Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any())).thenReturn(Flux.just(fileDetail));
         doNothing().when(fileService).deleteFileTmp(any());
-        Mockito.when(con020EnricherDao.updatePrintedPdf(any())).thenReturn(Mono.just(new CON020EnrichedEntity()));
+        Mockito.when(con020EnricherDao.update(any(), eq(UpdateTypeEnum.PDF))).thenReturn(Mono.just(new CON020EnrichedEntity()));
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);
@@ -229,6 +233,66 @@ class PaperEventEnricherServiceTest {
         StepVerifier.create(result)
                 .expectErrorMatches(throwable -> throwable instanceof RuntimeException &&
                         throwable.getMessage().equals("Update error"))
+                .verify();
+    }
+
+    @Test
+    void handleSafeStorageEventWithValidTags() {
+        String fileKey = "validFileKey";
+        Map<String, List<String>> tags = Map.of(COL_ARCHIVE_FILE_KEY, List.of("validArchiveFileKey"));
+        CON020EnrichedEntity enrichedEntity = mock(CON020EnrichedEntity.class);
+
+        Mockito.when(con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf("validArchiveFileKey", fileKey))
+                .thenReturn(Mono.just(enrichedEntity));
+        Mockito.when(con020EnricherDao.update(enrichedEntity, SAFE_STORAGE))
+                .thenReturn(Mono.just(enrichedEntity));
+
+        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(fileKey, tags);
+
+        StepVerifier.create(result)
+                .expectNext(enrichedEntity)
+                .verifyComplete();
+    }
+
+    @Test
+    void handleSafeStorageEventWithMissingTags() {
+        String fileKey = "validFileKey";
+        Map<String, List<String>> tags = new HashMap<>();
+
+        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(fileKey, tags);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        throwable.getMessage().equals("ArchiveFileKey tag is not present"))
+                .verify();
+    }
+
+    @Test
+    void handleSafeStorageEventWithNullTags() {
+        String fileKey = "validFileKey";
+        Map<String, List<String>> tags = null;
+
+        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(fileKey, tags);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        throwable.getMessage().equals("ArchiveFileKey tag is not present"))
+                .verify();
+    }
+
+    @Test
+    void handleSafeStorageEventWithNonExistentEntity() {
+        String fileKey = "validFileKey";
+        Map<String, List<String>> tags = Map.of(COL_ARCHIVE_FILE_KEY, List.of("validArchiveFileKey"));
+
+        Mockito.when(con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf("validArchiveFileKey", fileKey))
+                .thenReturn(Mono.empty());
+
+        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(fileKey, tags);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        throwable.getMessage().equalsIgnoreCase("No CON020EnrichedEntity found for ArchiveFileKey: [validArchiveFileKey] and FileKey: [validFileKey]"))
                 .verify();
     }
 }

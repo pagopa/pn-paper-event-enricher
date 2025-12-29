@@ -1,13 +1,16 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
+import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
@@ -17,42 +20,52 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SORT_KEY;
-import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.METADATA;
-import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.PDF;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ENRICHED_ENTITY_NOT_FOUND;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020BaseEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata.*;
+import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.*;
 
 @Slf4j
 @Repository
 public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> implements Con020EnricherDao {
 
+    PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
+
     public Con020EnricherDaoImpl(DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient, DynamoDbAsyncClient dynamoDbAsyncClient, PnPaperEventEnricherConfig pnPaperEventEnricherConfig) {
         super(dynamoDbEnhancedAsyncClient, dynamoDbAsyncClient, pnPaperEventEnricherConfig.getDao().getPaperEventEnrichmentTable(), CON020EnrichedEntity.class);
+        this.pnPaperEventEnricherConfig = pnPaperEventEnricherConfig;
     }
 
     public static final String QUERY_IF_NOT_EXISTS = " = if_not_exists(";
 
     @Override
-    public Mono<CON020EnrichedEntity> updateMetadata(CON020EnrichedEntity entity) {
-        UpdateItemRequest.Builder builder = UpdateItemRequest.builder()
+    public Mono<CON020EnrichedEntity> update(CON020EnrichedEntity entity, UpdateTypeEnum type) {
+        var req = UpdateItemRequest.builder()
                 .key(buildDynamoKey(entity.getHashKey(), SORT_KEY))
-                .updateExpression(constructUpdateExpression(UpdateTypeEnum.METADATA))
+                .returnValues("ALL_NEW")
+                .updateExpression(constructUpdateExpression(type))
                 .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
-                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, UpdateTypeEnum.METADATA));
+                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, type));
 
-        return updateItem(builder).thenReturn(entity);
+        return updateItem(req)
+                .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToPaperTrackings(updateItemResponse.attributes()));
     }
 
     @Override
-    public Mono<CON020EnrichedEntity> updatePrintedPdf(CON020EnrichedEntity entity) {
-        UpdateItemRequest.Builder builder = UpdateItemRequest.builder()
-                .key(buildDynamoKey(entity.getHashKey(), SORT_KEY))
-                .updateExpression(constructUpdateExpression(PDF))
-                .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
-                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, PDF));
+    public Mono<CON020EnrichedEntity> retrieveEntitiesByArchiveFileKeyAndPrintedPdf(String archiveFileKey, String fileKey) {
+        return queryWithPagination(archiveFileKey, fileKey, null);
+    }
 
-        return updateItem(builder).thenReturn(entity);
+    private Mono<CON020EnrichedEntity> queryWithPagination(String archiveFileKey, String fileKey, Map<String, AttributeValue> lastKey) {
+        return queryByIndex(ARCHIVEFILEKEY_INDEX, Key.builder().partitionValue(archiveFileKey).build(), pnPaperEventEnricherConfig.getDao().getQueryLimit(), lastKey)
+                .flatMap(page -> page.items().stream()
+                        .filter(entity -> entity.getPrintedPdf().equalsIgnoreCase(fileKey))
+                        .findFirst()
+                        .map(Mono::just)
+                        .orElseGet(() -> CollectionUtils.isEmpty(page.lastEvaluatedKey())
+                                ? Mono.error(new PaperEventEnricherException("No CON020EnrichedEntity found for ArchiveFileKey: [" + archiveFileKey + "] and FileKey: [" + fileKey + "]", 404, ENRICHED_ENTITY_NOT_FOUND))
+                                : queryWithPagination(archiveFileKey, fileKey, page.lastEvaluatedKey())));
     }
 
     protected String constructUpdateExpression(UpdateTypeEnum updateType) {
@@ -74,7 +87,8 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
             stringBuilder.append(COL_METADATA).append(" = :").append(COL_METADATA).append(", ");
             stringBuilder.append(COL_STATUS_DESCRIPTION).append(" = :").append(COL_STATUS_DESCRIPTION).append(", ");
             stringBuilder.append(COL_PRODUCT_TYPE).append(" = :").append(COL_PRODUCT_TYPE);
-
+        } else if(SAFE_STORAGE.equals(updateType)) {
+            stringBuilder.append(COL_RECEIVED_SAFESTORAGE_EVENT).append(" = :").append(COL_RECEIVED_SAFESTORAGE_EVENT);
         }
         return stringBuilder.toString();
     }
@@ -107,6 +121,8 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
             attributeValueMap.put(":" + COL_METADATA, AttributeValue.builder().m(constructMetadataAttributeValuesMap(entity.getMetadata())).build());
             attributeValueMap.put(":" + COL_STATUS_DESCRIPTION, AttributeValue.builder().s(entity.getStatusDescription()).build());
             attributeValueMap.put(":" + COL_PRODUCT_TYPE, AttributeValue.builder().s(entity.getProductType()).build());
+        } else if(SAFE_STORAGE.equals(updateType)) {
+            attributeValueMap.put(":" + COL_RECEIVED_SAFESTORAGE_EVENT, AttributeValue.builder().bool(true).build());
         }
 
         return attributeValueMap;

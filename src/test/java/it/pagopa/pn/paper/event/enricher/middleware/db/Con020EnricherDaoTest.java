@@ -1,26 +1,40 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
+import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
-import org.junit.jupiter.api.*;
+import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
-import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.core.async.SdkPublisher;
+import software.amazon.awssdk.enhanced.dynamodb.*;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity.ARCHIVEFILEKEY_INDEX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -37,7 +51,7 @@ class Con020EnricherDaoTest {
     @MockitoBean
     private DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient;
 
-    DynamoDbAsyncTable<CON020ArchiveEntity> tableAsync;
+    DynamoDbAsyncTable<CON020EnrichedEntity> tableAsync;
 
 
     @BeforeAll
@@ -47,7 +61,7 @@ class Con020EnricherDaoTest {
         PnPaperEventEnricherConfig.Dao dao = new PnPaperEventEnricherConfig.Dao();
         dao.setPaperEventEnrichmentTable("tableName");
         pnPaperEventEnricherConfig.setDao(dao);
-        when(dynamoDbEnhancedAsyncClient.table(anyString(), (TableSchema<CON020ArchiveEntity>) any())).thenReturn(tableAsync);
+        when(dynamoDbEnhancedAsyncClient.table(anyString(), (TableSchema<CON020EnrichedEntity>) any())).thenReturn(tableAsync);
         con020EnricherDao = new Con020EnricherDaoImpl(dynamoDbEnhancedAsyncClient, dynamoDbAsyncClient, pnPaperEventEnricherConfig);
     }
 
@@ -95,21 +109,127 @@ class Con020EnricherDaoTest {
     @Test
     void updateMetadata_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
-        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.paperTrackingsToAttributeValueMap(con020ArchiveEntity));
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updateMetadata(con020ArchiveEntity))
-                .expectNext(con020ArchiveEntity)
+        StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.METADATA))
+                .expectNextMatches(Objects::nonNull)
                 .verifyComplete();
     }
 
     @Test
     void updatePrintedPdf_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
-        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.paperTrackingsToAttributeValueMap(con020ArchiveEntity));
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updatePrintedPdf(con020ArchiveEntity))
-                .expectNext(con020ArchiveEntity)
+        StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.PDF))
+                .expectNextMatches(Objects::nonNull)
                 .verifyComplete();
 
     }
+
+    @Test
+    void retrieveEntitiesByArchiveFileKeyAndPrintedPdfReturnsEntityWhenFound() {
+        String archiveFileKey = "validArchiveFileKey";
+        String fileKey = "validFileKey";
+        CON020EnrichedEntity entity = new CON020EnrichedEntity();
+        entity.setPrintedPdf("validFileKey");
+        CON020EnrichedEntity entity2 = new CON020EnrichedEntity();
+        entity2.setPrintedPdf("validFileKey2");
+
+        SdkPublisher<Page<CON020EnrichedEntity>> publisher =
+                subscriber -> Flux.just(
+                        Page.create(
+                                List.of(entity, entity2),
+                                Map.of("LastEvaluatedKey", AttributeValue.builder().s("lastKey").build())
+                        )
+                ).subscribe(subscriber);
+
+        DynamoDbAsyncIndex<CON020EnrichedEntity> indexMock = mock(DynamoDbAsyncIndex.class);
+
+        Mockito.when(tableAsync.index(anyString())).thenReturn(indexMock);
+        Mockito.when(indexMock.query(any(QueryEnhancedRequest.class)))
+                .thenReturn(publisher);
+
+        Mono<CON020EnrichedEntity> result = con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf(archiveFileKey, fileKey);
+
+        StepVerifier.create(result)
+                .expectNext(entity)
+                .verifyComplete();
+    }
+
+    @Test
+    void retrieveEntitiesByArchiveFileKeyAndPrintedPdfThrowsErrorWhenNotFound() {
+        String archiveFileKey = "validArchiveFileKey";
+        String fileKey = "nonExistentFileKey";
+        CON020EnrichedEntity entity = new CON020EnrichedEntity();
+        entity.setPrintedPdf("validFileKey");
+
+        SdkPublisher<Page<CON020EnrichedEntity>> publisher =
+                subscriber -> Flux.just(
+                        Page.create(
+                                List.of(entity),
+                                null
+                        )
+                ).subscribe(subscriber);
+
+        DynamoDbAsyncIndex<CON020EnrichedEntity> indexMock = mock(DynamoDbAsyncIndex.class);
+
+        Mockito.when(tableAsync.index(anyString())).thenReturn(indexMock);
+        Mockito.when(indexMock.query(any(QueryEnhancedRequest.class)))
+                .thenReturn(publisher);
+
+        Mono<CON020EnrichedEntity> result = con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf(archiveFileKey, fileKey);
+
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
+                        throwable.getMessage().equals("No CON020EnrichedEntity found for ArchiveFileKey: [validArchiveFileKey] and FileKey: [nonExistentFileKey]"))
+                .verify();
+    }
+
+    @Test
+    void retrieveEntitiesByArchiveFileKeyAndPrintedPdfHandlesPagination() {
+        String archiveFileKey = "validArchiveFileKey";
+        String fileKey = "validFileKey";
+        CON020EnrichedEntity entity = new CON020EnrichedEntity();
+        entity.setPrintedPdf("invalidFileKey");
+        CON020EnrichedEntity entity2 = new CON020EnrichedEntity();
+        entity2.setPrintedPdf("validFileKey");
+
+        SdkPublisher<Page<CON020EnrichedEntity>> publisher =
+                subscriber -> Flux.just(
+                        Page.create(
+                                List.of(entity),
+                                null
+                        )
+                ).subscribe(subscriber);
+
+        DynamoDbAsyncIndex<CON020EnrichedEntity> indexMock = mock(DynamoDbAsyncIndex.class);
+
+        Mockito.when(tableAsync.index(anyString())).thenReturn(indexMock);
+        Mockito.when(indexMock.query(any(QueryEnhancedRequest.class)))
+                .thenReturn(publisher);
+
+        SdkPublisher<Page<CON020EnrichedEntity>> publisher2 =
+                subscriber -> Flux.just(
+                        Page.create(
+                                List.of(entity2),
+                                Map.of("LastEvaluatedKey", AttributeValue.builder().s("lastKey").build())
+                        )
+                ).subscribe(subscriber);
+
+        Mockito.when(tableAsync.index(anyString())).thenReturn(indexMock);
+        Mockito.when(indexMock.query(any(QueryEnhancedRequest.class)))
+                .thenReturn(publisher2);
+
+        Mono<CON020EnrichedEntity> result = con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf(archiveFileKey, fileKey);
+
+        StepVerifier.create(result)
+                .expectNext(entity2)
+                .verifyComplete();
+    }
+
 }

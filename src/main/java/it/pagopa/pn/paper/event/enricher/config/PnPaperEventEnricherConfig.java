@@ -24,6 +24,7 @@ public class PnPaperEventEnricherConfig {
     @Data
     public static class Dao {
         private String paperEventEnrichmentTable;
+        private Integer queryLimit;
     }
 
     @Data
