@@ -99,7 +99,7 @@ class Con020EnricherDaoTest {
     void updateMetadata_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
         UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
-        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.paperTrackingsToAttributeValueMap(con020ArchiveEntity));
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.con020EnrichedEntityToAttributeValueMap(con020ArchiveEntity));
         CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
         StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.METADATA))
@@ -111,7 +111,7 @@ class Con020EnricherDaoTest {
     void updatePrintedPdf_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
         UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
-        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.paperTrackingsToAttributeValueMap(con020ArchiveEntity));
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.con020EnrichedEntityToAttributeValueMap(con020ArchiveEntity));
         CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
         StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.PDF))

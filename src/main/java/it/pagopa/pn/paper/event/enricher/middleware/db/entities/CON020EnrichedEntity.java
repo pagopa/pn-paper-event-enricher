@@ -7,7 +7,6 @@ import lombok.ToString;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.Instant;
@@ -65,16 +64,16 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
             TableSchema.fromBean(CON020EnrichedEntity.class);
 
     /**
-     * Converte l'entity PaperTrackings in una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB.
+     * Converte l'entity CON020EnrichedEntity in una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB.
      */
-    public static Map<String, AttributeValue> paperTrackingsToAttributeValueMap(CON020EnrichedEntity p) {
+    public static Map<String, AttributeValue> con020EnrichedEntityToAttributeValueMap(CON020EnrichedEntity p) {
         return SCHEMA.itemToMap(p, true);
     }
 
     /**
-     * Converte una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB in una entity PaperTrackings.
+     * Converte una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB in una entity CON020EnrichedEntity.
      */
-    public static CON020EnrichedEntity attributeValueMapToPaperTrackings(Map<String, AttributeValue> item) {
+    public static CON020EnrichedEntity attributeValueMapToCON020EnrichedEntity(Map<String, AttributeValue> item) {
         if (item == null || item.isEmpty()) return null;
         return SCHEMA.mapToItem(item);
     }

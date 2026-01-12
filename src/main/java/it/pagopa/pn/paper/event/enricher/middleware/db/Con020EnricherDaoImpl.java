@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.utils.StringUtils;
 
@@ -26,11 +27,8 @@ import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.*;
 @Repository
 public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> implements Con020EnricherDao {
 
-    PnPaperEventEnricherConfig pnPaperEventEnricherConfig;
-
     public Con020EnricherDaoImpl(DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient, DynamoDbAsyncClient dynamoDbAsyncClient, PnPaperEventEnricherConfig pnPaperEventEnricherConfig) {
         super(dynamoDbEnhancedAsyncClient, dynamoDbAsyncClient, pnPaperEventEnricherConfig.getDao().getPaperEventEnrichmentTable(), CON020EnrichedEntity.class);
-        this.pnPaperEventEnricherConfig = pnPaperEventEnricherConfig;
     }
 
     public static final String QUERY_IF_NOT_EXISTS = " = if_not_exists(";
@@ -39,13 +37,13 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
     public Mono<CON020EnrichedEntity> update(CON020EnrichedEntity entity, UpdateTypeEnum type) {
         var req = UpdateItemRequest.builder()
                 .key(buildDynamoKey(entity.getHashKey()))
-                .returnValues("ALL_NEW")
+                .returnValues(ReturnValue.ALL_NEW)
                 .updateExpression(constructUpdateExpression(type))
                 .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
                 .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, type));
 
         return updateItem(req)
-                .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToPaperTrackings(updateItemResponse.attributes()));
+                .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToCON020EnrichedEntity(updateItemResponse.attributes()));
     }
 
     protected String constructUpdateExpression(UpdateTypeEnum updateType) {
