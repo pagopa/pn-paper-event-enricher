@@ -39,7 +39,6 @@ class SafeStorageServiceTest {
     void callSafeStorageCreateFileAndUpload_success() {
         byte[] content = "file content".getBytes();
         String sha256 = "dummySha256";
-        String archiveFileKey = "archiveFileKey";
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         fileCreationRequest.setContentType("application/pdf");
         fileCreationRequest.setStatus("ATTACHED");
@@ -53,7 +52,7 @@ class SafeStorageServiceTest {
         when(uploadDownloadClient.uploadContent(eq(content), any(FileCreationResponse.class), eq(sha256)))
                 .thenReturn(Mono.just("fileKey"));
 
-        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, archiveFileKey))
+        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, "hashKey"))
                 .expectNext("fileKey")
                 .verifyComplete();
     }
@@ -62,12 +61,11 @@ class SafeStorageServiceTest {
     void callSafeStorageCreateFileAndUpload_failure() {
         byte[] content = "file content".getBytes();
         String sha256 = "dummySha256";
-        String archiveFileKey = "archiveFileKey";
 
         when(pnSafeStorageClient.createFile(any(FileCreationRequest.class), eq(sha256)))
                 .thenReturn(Mono.error(new RuntimeException("Creation failed")));
 
-        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, archiveFileKey))
+        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, "hashKey"))
                 .expectError(RuntimeException.class)
                 .verify();
     }

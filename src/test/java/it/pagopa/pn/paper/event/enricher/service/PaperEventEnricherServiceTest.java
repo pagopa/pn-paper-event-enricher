@@ -10,6 +10,7 @@ import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperArchiveEven
 import it.pagopa.pn.paper.event.enricher.middleware.queue.event.PaperEventEnricherInputEvent;
 import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
+import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -22,8 +23,10 @@ import reactor.test.StepVerifier;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity.COL_ARCHIVE_FILE_KEY;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.BIN;
 import static org.mockito.Mockito.*;
 
@@ -221,7 +224,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
         Mockito.when(fileService.downloadFile("archiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
-        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0), "archiveFileKey")).thenReturn(Flux.empty());
+        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0), "hashKey")).thenReturn(Flux.empty());
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.error(new RuntimeException("Update error")));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);

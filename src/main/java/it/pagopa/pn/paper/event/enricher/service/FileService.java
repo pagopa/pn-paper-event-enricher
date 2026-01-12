@@ -7,6 +7,7 @@ import it.pagopa.pn.paper.event.enricher.model.FileCounter;
 import it.pagopa.pn.paper.event.enricher.model.FileDetail;
 import it.pagopa.pn.paper.event.enricher.model.FileTypeEnum;
 import it.pagopa.pn.paper.event.enricher.model.IndexData;
+import it.pagopa.pn.paper.event.enricher.utils.FileUtils;
 import it.pagopa.pn.paper.event.enricher.utils.Sha256Handler;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +33,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.StreamSupport;
 
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.*;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
+import static it.pagopa.pn.paper.event.enricher.utils.FileUtils.*;
 import static it.pagopa.pn.paper.event.enricher.utils.P7mUtils.findSignedData;
-import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.getContent;
-import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.parseBol;
+import static it.pagopa.pn.paper.event.enricher.utils.PaperEventEnricherUtils.computeCon020EnrichedHashKey;
 import static it.pagopa.pn.paper.event.enricher.utils.PdfUtils.cutPdf;
 
 @Component
@@ -110,52 +111,37 @@ public class FileService {
                         return Flux.error(new PaperEventEnricherException(UNSUPPORTED_FILE_TYPE, 500, UNSUPPORTED_FILE_TYPE));
                     }
                 });
-
     }
 
     public Flux<FileDetail> extractZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter, String archiveFileKey) {
-        try {
-            ZipFile zipFile = ZipFile.builder().setFile(path.toFile()).get();
-            List<ZipArchiveEntry> entries = Collections.list(zipFile.getEntries());
-            fileCounter.setTotalFiles(entries.size());
-            return Flux.fromIterable(entries)
-                    .flatMap(zipArchiveEntry -> {
-                        try {
-                            return getFileDetail(zipFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName(), archiveFileKey);
-                        } catch (IOException e) {
-                            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
-                        }
-                    }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
-                    .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                    .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet()));
-        } catch (IOException e) {
-            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
-        }
+        return Flux.using(() -> ZipFile.builder().setFile(path.toFile()).get(),
+                zipFile -> Mono.fromCallable(() -> Collections.list(zipFile.getEntries()))
+                        .doOnNext(entries -> fileCounter.setTotalFiles(entries.size()))
+                        .doOnNext(entries -> readAndParseBol(indexDataMap, entries, zipFile))
+                        .flatMapMany(Flux::fromIterable)
+                        .flatMap(zipArchiveEntry -> getFileDetail(getInputStreamFromEntry(zipArchiveEntry, zipFile), indexDataMap, zipArchiveEntry.getName(), archiveFileKey), pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                        .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
+                        .doOnNext(s -> log.info(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet())),
+                FileUtils::closeZipFile
+        ).onErrorMap(IOException.class, e -> new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE));
     }
 
     public Flux<FileDetail> extract7ZipFilesFromArchive(Path path, Map<String, IndexData> indexDataMap, FileCounter fileCounter, String archiveFileKey) {
-        try {
-            SevenZFile sevenZFile = SevenZFile.builder().setFile(path.toFile()).get();
-            List<SevenZArchiveEntry> entries = (List<SevenZArchiveEntry>) sevenZFile.getEntries();
-            fileCounter.setTotalFiles(entries.size());
-            return Flux.fromIterable(entries)
-                    .flatMap(zipArchiveEntry -> {
-                        try {
-                            return getFileDetail(sevenZFile.getInputStream(zipArchiveEntry), indexDataMap, zipArchiveEntry.getName(), archiveFileKey);
-                        } catch (IOException e) {
-                            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
-                        }
-                    }, pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
-                    .filter(fileDetail -> StringUtils.hasText(fileDetail.getFilename()) && fileDetail.getFilename().endsWith(PDF.getValue()))
-                    .doOnNext(s -> log.debug(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet()));
-        } catch (IOException e) {
-            throw new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE);
-        }
+        return Flux.using(
+                () -> SevenZFile.builder().setFile(path.toFile()).get(),
+                sevenZFile -> Mono.fromCallable(() -> StreamSupport.stream(sevenZFile.getEntries().spliterator(), false).toList())
+                        .doOnNext(entries -> fileCounter.setTotalFiles(entries.size()))
+                        .doOnNext(entries -> readAndParseBol(indexDataMap, entries, sevenZFile))
+                        .flatMapMany(Flux::fromIterable)
+                        .flatMap(entry -> getFileDetail(getInputStreamFromEntry(entry, sevenZFile), indexDataMap, entry.getName(), archiveFileKey), pnPaperEventEnricherConfig.getSafeStorageUploadMaxConcurrentRequest())
+                        .filter(fd -> StringUtils.hasText(fd.getFilename()) && fd.getFilename().endsWith(PDF.getValue()))
+                        .doOnNext(fd -> log.info(UPLOADED_FILES_COUNT, fileCounter.getUploadedFiles().incrementAndGet())),
+                FileUtils::close7zFile
+        ).onErrorMap(IOException.class, e -> new PaperEventEnricherException(e.getMessage(), 500, ERROR_DURING_FILE_EXTRACTION_FROM_ARCHIVE));
     }
 
     private Mono<FileDetail> getFileDetail(InputStream zipInputStream, Map<String, IndexData> indexDataMap, String name, String archiveFileKey) {
         if (name.endsWith(BOL.getValue()) && Objects.nonNull(indexDataMap)) {
-            indexDataMap.putAll(parseBol(getContent(zipInputStream, name)));
             log.info(DATA_MAP_WITH_ENTRY, name, indexDataMap.size());
             return Mono.just(FileDetail.builder().filename(name).build());
         } else if (name.endsWith(PDF.getValue())) {
@@ -165,7 +151,8 @@ public class FileService {
                 content = cutPdf(content, pnPaperEventEnricherConfig.getPdfPageSize());
             }
             String sha256 = Sha256Handler.computeSha256(content);
-            return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, archiveFileKey)
+            String con020EnrichedHashKey = computeCon020EnrichedHashKey(indexDataMap, name, archiveFileKey);
+            return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, con020EnrichedHashKey)
                     .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());
         } else {
             return Mono.just(FileDetail.builder().filename(name).build());
@@ -220,18 +207,6 @@ public class FileService {
         } catch (IOException e) {
             return Mono.error(new PaperEventEnricherException(e.getMessage(), 500, FAILED_TO_READ_FILE));
         }
-    }
-
-    private boolean startsWith(byte[] file, byte[] signature) {
-        if (file.length < 4) {
-            throw new PaperEventEnricherException(FILE_IS_TOO_SHORT, 400, FILE_IS_TOO_SHORT);
-        }
-        for (int i = 0; i < signature.length; i++) {
-            if (file[i] != signature[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public void deleteFileTmp(Path path) {

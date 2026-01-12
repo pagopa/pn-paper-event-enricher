@@ -15,10 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -26,8 +24,7 @@ import java.util.regex.Pattern;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ERROR_CODE_INVALID_REQUESTID;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.FAILED_TO_READ_FILE;
-import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
+import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.INDEX_DATA_NOT_FOUND;
 
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -149,12 +146,12 @@ public class PaperEventEnricherUtils {
         return con020ArchiveEntity;
     }
 
-    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String archiveFileKey, String requestId, String registeredLetterCode) {
+    public static CON020EnrichedEntity createEnricherEntityForPrintedPdf(String fileKey, String sha256, String con020EnrichedHashKey, String archiveFileKey) {
         CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
         var fileKeyWithSuffix = fileKey.startsWith(SAFE_STORAGE_PREFIX) ? fileKey : SAFE_STORAGE_PREFIX + fileKey;
         Instant now = Instant.now();
 
-        con020EnrichedEntity.setHashKey(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode));
+        con020EnrichedEntity.setHashKey(con020EnrichedHashKey);
         con020EnrichedEntity.setPdfDocumentType(PDF_DOCUMENT_TYPE);
         con020EnrichedEntity.setPdfSha256(sha256);
         con020EnrichedEntity.setPdfDate(Instant.now());
@@ -170,34 +167,12 @@ public class PaperEventEnricherUtils {
         return con020EnrichedEntity;
     }
 
-    public static byte[] getContent(InputStream in, String fileName) {
-        try {
-            return in.readAllBytes();
-        } catch (Exception e) {
-            log.error("Failed to read file [{}]", fileName, e);
-            throw new PaperEventEnricherException(String.format("Failed to read file [%s]", fileName), 500, FAILED_TO_READ_FILE);
+    public static String computeCon020EnrichedHashKey(Map<String, IndexData> indexDataMap, String name, String archiveFileKey) {
+        IndexData indexData = indexDataMap.get(name);
+        if(Objects.isNull(indexData)){
+            throw new PaperEventEnricherException("IndexData not found for file: " + name, 500, INDEX_DATA_NOT_FOUND);
         }
-    }
-
-    public static Map<String, IndexData> parseBol(byte[] bolBytes) {
-        String bolString = new String(bolBytes);
-        Map<String, IndexData> archiveDetails = new HashMap<>();
-        for (String line : bolString.split("\n")) {
-            if (!line.isEmpty()) {
-                String[] cells = line.split("\\|");
-                if(cells.length > 6) {
-                    String p7mEntryName = cells[0];
-                    String requestId = cells[3];
-                    String registeredLetterCode = cells[6];
-
-                    if (p7mEntryName.toLowerCase().endsWith(PDF.getValue())) {
-                        IndexData indexData = new IndexData(requestId, registeredLetterCode, p7mEntryName);
-                        archiveDetails.put(p7mEntryName, indexData);
-                    }
-                }
-            }
-        }
-        return archiveDetails;
+        return CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
     }
 
 }

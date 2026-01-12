@@ -99,7 +99,7 @@ public class PaperEventEnricherService {
     private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
         if (Objects.nonNull(indexData)) {
-            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), fileDetail.getSha256(), archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
+            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), fileDetail.getSha256(), fileDetail.getCon020EnrichedHashKey(), archiveFileKey);
             return con020EnricherDao.updatePrintedPdf(con020EnrichedEntity)
                     .map(CON020BaseEntity::getHashKey)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable));

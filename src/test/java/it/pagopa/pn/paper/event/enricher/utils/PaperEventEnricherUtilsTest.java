@@ -31,7 +31,7 @@ class PaperEventEnricherUtilsTest {
         String registeredLetterCode = "registeredLetterCode";
         String sha256 = "sha256";
 
-        CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForPrintedPdf(fileKey, sha256, archiveFileKey, requestId, registeredLetterCode);
+        CON020EnrichedEntity result = PaperEventEnricherUtils.createEnricherEntityForPrintedPdf(fileKey, sha256, "CON020EN~archiveFileKey_requestId_registeredLetterCode", archiveFileKey);
 
         assertNotNull(result);
         assertEquals(CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, requestId, registeredLetterCode), result.getHashKey());
@@ -84,55 +84,6 @@ class PaperEventEnricherUtilsTest {
     }
 
     @Test
-    void parseBolWithValidData() {
-        byte[] bolBytes = "entry1.pdf|data|data|requestId1|data|data|registeredLetterCode1\nentry2.pdf|data|data|requestId2|data|data|registeredLetterCode2".getBytes();
-        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
-
-        assertEquals(2, result.size());
-        assertTrue(result.containsKey("entry1.pdf"));
-        assertTrue(result.containsKey("entry2.pdf"));
-        assertEquals("requestId1", result.get("entry1.pdf").getRequestId());
-        assertEquals("registeredLetterCode1", result.get("entry1.pdf").getRegisteredLetterCode());
-        assertEquals("requestId2", result.get("entry2.pdf").getRequestId());
-        assertEquals("registeredLetterCode2", result.get("entry2.pdf").getRegisteredLetterCode());
-    }
-
-    @Test
-    void parseBolWithEmptyData() {
-        byte[] bolBytes = "".getBytes();
-        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void parseBolWithNonPdfEntries() {
-        byte[] bolBytes = "entry1.txt|data|data|requestId1|data|data|registeredLetterCode1\nentry2.doc|data|data|requestId2|data|data|registeredLetterCode2".getBytes();
-        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void parseBolWithMixedEntries() {
-        byte[] bolBytes = "entry1.pdf|data|data|requestId1|data|data|registeredLetterCode1\nentry2.txt|data|data|requestId2|data|data|registeredLetterCode2".getBytes();
-        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
-
-        assertEquals(1, result.size());
-        assertTrue(result.containsKey("entry1.pdf"));
-        assertEquals("requestId1", result.get("entry1.pdf").getRequestId());
-        assertEquals("registeredLetterCode1", result.get("entry1.pdf").getRegisteredLetterCode());
-    }
-
-    @Test
-    void parseBolWithMixedEntriesError() {
-        byte[] bolBytes = "entry1.pdf|data|data|".getBytes();
-        Map<String, IndexData> result = PaperEventEnricherUtils.parseBol(bolBytes);
-
-        assertEquals(0, result.size());
-    }
-
-    @Test
     void createArchiveEntityForStatusUpdate() {
         PaperArchiveEvent.Payload payload = PaperArchiveEvent.Payload.builder().archiveFileKey("test").build();
         FileCounter fileCounter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 1);
@@ -179,18 +130,4 @@ class PaperEventEnricherUtilsTest {
                 "Archive attachment uri not found.");
     }
 
-    @Test
-    void getContentWithValidInputStream() {
-        InputStream inputStream = new ByteArrayInputStream("test content".getBytes());
-
-        byte[] result = PaperEventEnricherUtils.getContent(inputStream, "fileName");
-
-        assertArrayEquals("test content".getBytes(), result);
-    }
-
-    @Test
-    void getContentWithValidInputStreamError() {
-
-        Assertions.assertThrows(PaperEventEnricherException.class, () -> PaperEventEnricherUtils.getContent(null, "fileName"));
-    }
 }

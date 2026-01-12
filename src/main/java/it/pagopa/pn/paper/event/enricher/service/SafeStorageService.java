@@ -24,8 +24,8 @@ public class SafeStorageService {
     private final PnSafeStorageClient pnSafeStorageClient;
     private final UploadDownloadClient uploadDownloadClient;
 
-    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256, String archiveFileKey) {
-        FileCreationRequest fileCreationRequestDto = buildFileCreationRequest(archiveFileKey);
+    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256, String con020EnrichedHashKey) {
+        FileCreationRequest fileCreationRequestDto = buildFileCreationRequest(con020EnrichedHashKey);
         return pnSafeStorageClient.createFile(fileCreationRequestDto, sha256)
                 .flatMap(fileCreationResponseDto -> uploadDownloadClient.uploadContent(content, fileCreationResponseDto, sha256)
                         .doOnNext(response -> log.info("file [{}] uploaded", fileCreationResponseDto.getKey()))
@@ -36,12 +36,12 @@ public class SafeStorageService {
                 });
     }
 
-    private FileCreationRequest buildFileCreationRequest(String archiveFileKey) {
+    private FileCreationRequest buildFileCreationRequest(String con020EnrichedHashKey) {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         fileCreationRequest.setContentType("application/pdf");
         fileCreationRequest.setStatus(ATTACHED);
         fileCreationRequest.setDocumentType(DOCUMENT_TYPE);
-        fileCreationRequest.setTags(Map.of("archiveFileKey", List.of(archiveFileKey)));
+        fileCreationRequest.setTags(Map.of("con020EnrichedHashKey", List.of(con020EnrichedHashKey)));
         return fileCreationRequest;
     }
 
