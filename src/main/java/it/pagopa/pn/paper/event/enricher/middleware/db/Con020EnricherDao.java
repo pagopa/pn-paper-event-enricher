@@ -8,6 +8,4 @@ public interface Con020EnricherDao {
 
     Mono<CON020EnrichedEntity> update(CON020EnrichedEntity entity, UpdateTypeEnum type);
 
-    Mono<CON020EnrichedEntity> retrieveEntitiesByArchiveFileKeyAndPrintedPdf(String archiveFileKey, String fileKey);
-
 }

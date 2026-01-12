@@ -281,11 +281,6 @@ Parameters:
     Description: 'Value to use as base period for the custom metric (2 days)'
     Default: 172800
 
-  QueryLimit:
-    Type: Number
-    Description: 'Limit for query operations on DynamoDB'
-    Default: 1000
-
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -325,7 +320,6 @@ Resources:
         ContainerEnvEntry14: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUEMAXNUMBEROFMESSAGES=${ArchiveQueueMaxNumberOfMessages}'
         ContainerEnvEntry15: !Sub 'PN_PAPEREVENTENRICHER_PDFTWOPAGESENABLED=${PdfTwoPagesEnabled}'
         ContainerEnvEntry16: !Sub 'PN_PAPEREVENTENRICHER_ARCHIVEQUEUESTOPTIMEOUT=${ArchiveQueueStopTimeoutMillis}'
-        ContainerEnvEntry18: !Sub 'PN_PAPEREVENTENRICHER_DAO_QUERYLIMIT=${QueryLimit}'
         MappedPaths: '/paper-event-enricher/*'
         JavaToolOptions: '-XX:MaxDirectMemorySize=1024m'
         ECSClusterName: !Ref ECSClusterName

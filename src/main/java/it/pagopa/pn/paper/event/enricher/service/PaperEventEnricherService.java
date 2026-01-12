@@ -21,9 +21,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ENRICHED_ENTITY_NOT_FOUND;
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.INVALID_SAFE_STORAGE_EVENT;
-import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity.COL_ARCHIVE_FILE_KEY;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.BIN;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.METADATA;
@@ -40,6 +38,7 @@ public class PaperEventEnricherService {
     private final FileService fileService;
     private final PnPaperEventEnricherConfig config;
 
+    private static final String CON020ENRICHED_HASH_KEY = "con020EnrichedHashKey";
 
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
         return Mono.just(createArchiveEntity(payload.getAnalogMail()))
@@ -108,15 +107,14 @@ public class PaperEventEnricherService {
         return Mono.just(fileDetail.getFilename());
     }
 
-    public Mono<CON020EnrichedEntity> handleSafeStorageEvent(String fileKey, Map<String, List<String>> tags) {
-        if(CollectionUtils.isEmpty(tags) || !tags.containsKey(COL_ARCHIVE_FILE_KEY)){
-            return Mono.error(new PaperEventEnricherException("ArchiveFileKey tag is not present", 400, INVALID_SAFE_STORAGE_EVENT));
+    public Mono<CON020EnrichedEntity> handleSafeStorageEvent(Map<String, List<String>> tags) {
+        if(CollectionUtils.isEmpty(tags) || !tags.containsKey(CON020ENRICHED_HASH_KEY)){
+            return Mono.error(new PaperEventEnricherException("con020EnrichedHashKey tag is not present", 400, INVALID_SAFE_STORAGE_EVENT));
         }
-        String archiveFileKey = tags.get(COL_ARCHIVE_FILE_KEY).getFirst();
+        String con020EnrichedHashKey = tags.get(CON020ENRICHED_HASH_KEY).getFirst();
+        CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForSafeStorageEvent(con020EnrichedHashKey);
 
-        return con020EnricherDao.retrieveEntitiesByArchiveFileKeyAndPrintedPdf(archiveFileKey, fileKey)
-                .switchIfEmpty(Mono.error(new PaperEventEnricherException("No CON020EnrichedEntity found for ArchiveFileKey: [" + archiveFileKey + "] and FileKey: [" + fileKey + "]", 404, ENRICHED_ENTITY_NOT_FOUND)))
-                .flatMap(con020EnrichedEntity -> con020EnricherDao.update(con020EnrichedEntity, SAFE_STORAGE))
+        return con020EnricherDao.update(con020EnrichedEntity, SAFE_STORAGE)
                 .doOnError(throwable -> log.error("Unexpected error while handling Safe Storage event: {}", throwable.getMessage(), throwable));
     }
 }

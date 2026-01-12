@@ -1,16 +1,13 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
-import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
 import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
-import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
@@ -20,7 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SORT_KEY;
-import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.ENRICHED_ENTITY_NOT_FOUND;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020BaseEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata.*;
@@ -42,7 +38,7 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
     @Override
     public Mono<CON020EnrichedEntity> update(CON020EnrichedEntity entity, UpdateTypeEnum type) {
         var req = UpdateItemRequest.builder()
-                .key(buildDynamoKey(entity.getHashKey(), SORT_KEY))
+                .key(buildDynamoKey(entity.getHashKey()))
                 .returnValues("ALL_NEW")
                 .updateExpression(constructUpdateExpression(type))
                 .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
@@ -50,22 +46,6 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
 
         return updateItem(req)
                 .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToPaperTrackings(updateItemResponse.attributes()));
-    }
-
-    @Override
-    public Mono<CON020EnrichedEntity> retrieveEntitiesByArchiveFileKeyAndPrintedPdf(String archiveFileKey, String fileKey) {
-        return queryWithPagination(archiveFileKey, fileKey, null);
-    }
-
-    private Mono<CON020EnrichedEntity> queryWithPagination(String archiveFileKey, String fileKey, Map<String, AttributeValue> lastKey) {
-        return queryByIndex(ARCHIVEFILEKEY_INDEX, Key.builder().partitionValue(archiveFileKey).build(), pnPaperEventEnricherConfig.getDao().getQueryLimit(), lastKey)
-                .flatMap(page -> page.items().stream()
-                        .filter(entity -> entity.getPrintedPdf().equalsIgnoreCase(fileKey))
-                        .findFirst()
-                        .map(Mono::just)
-                        .orElseGet(() -> CollectionUtils.isEmpty(page.lastEvaluatedKey())
-                                ? Mono.error(new PaperEventEnricherException("No CON020EnrichedEntity found for ArchiveFileKey: [" + archiveFileKey + "] and FileKey: [" + fileKey + "]", 404, ENRICHED_ENTITY_NOT_FOUND))
-                                : queryWithPagination(archiveFileKey, fileKey, page.lastEvaluatedKey())));
     }
 
     protected String constructUpdateExpression(UpdateTypeEnum updateType) {
@@ -93,10 +73,10 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         return stringBuilder.toString();
     }
 
-    protected Map<String, AttributeValue> buildDynamoKey(String hashKey, String sortKey) {
+    protected Map<String, AttributeValue> buildDynamoKey(String hashKey) {
         Map<String, AttributeValue> key = new HashMap<>();
         key.put(COL_HASH_KEY, AttributeValue.builder().s(hashKey).build());
-        key.put(COL_SORT_KEY, AttributeValue.builder().s(sortKey).build());
+        key.put(COL_SORT_KEY, AttributeValue.builder().s(SORT_KEY).build());
         return key;
     }
 

@@ -36,7 +36,7 @@ public class SafeStorageEventHandler {
         if (StringUtils.hasText(payload.getKey())) {
             MDC.put(MDCUtils.MDC_PN_CTX_REQUEST_ID, payload.getKey());
         }
-        var handledMessage = paperEventEnricherService.handleSafeStorageEvent(payload.getKey(), payload.getTags())
+        var handledMessage = paperEventEnricherService.handleSafeStorageEvent(payload.getTags())
                 .doOnSuccess(unused -> {
                     log.logEndingProcess(HANDLER_REQUEST);
                     log.info("End handling message on [{}], duration: {} ms", HANDLER_REQUEST, Instant.now().toEpochMilli() - start.toEpochMilli());

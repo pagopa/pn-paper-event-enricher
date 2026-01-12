@@ -21,7 +21,6 @@ public class PnPaperEventEnricherExceptionConstant {
     public static final String ERROR_WHILE_PARSING_P7M = "ERROR_WHILE_PARSING_P7M";
 
     public static final String INVALID_SAFE_STORAGE_EVENT = "INVALID_SAFE_STORAGE_EVENT";
-    public static final String ENRICHED_ENTITY_NOT_FOUND = "ENRICHED_ENTITY_NOT_FOUND";
 
     public static final String FAILED_TO_CUT_PDF_FILE = "FAILED_TO_CUT_PDF_FILE";
 

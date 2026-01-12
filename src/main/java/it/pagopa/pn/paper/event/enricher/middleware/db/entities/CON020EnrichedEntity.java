@@ -31,7 +31,6 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     public static final String COL_PDF_DATE = "pdfDate";
     public static final String COL_ARCHIVEFILEKEY = "archiveFileKey";
     public static final String COL_RECEIVED_SAFESTORAGE_EVENT = "receivedSafeStorageEvent";
-    public static final String ARCHIVEFILEKEY_INDEX = "archiveFileKey-index";
 
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_METADATA)}))
     private CON020EnrichedEntityMetadata metadata;
@@ -49,7 +48,7 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     private String pdfSha256;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_PDF_DATE)}))
     private Instant pdfDate;
-    @Getter(onMethod = @__({@DynamoDbAttribute(COL_ARCHIVEFILEKEY), @DynamoDbSecondaryPartitionKey(indexNames = ARCHIVEFILEKEY_INDEX)}))
+    @Getter(onMethod = @__({@DynamoDbAttribute(COL_ARCHIVEFILEKEY)}))
     private String archiveFileKey;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_RECEIVED_SAFESTORAGE_EVENT)}))
     private Boolean receivedSafeStorageEvent;
