@@ -22,6 +22,10 @@ import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.PDF;
 @Slf4j
 public class FileUtils {
 
+    private FileUtils() {
+        //Utility class
+    }
+
     public static byte[] getContent(InputStream in, String fileName) {
         try {
             return in.readAllBytes();
