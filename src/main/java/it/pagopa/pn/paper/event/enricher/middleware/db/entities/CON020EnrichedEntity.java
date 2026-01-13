@@ -4,10 +4,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.Instant;
+import java.util.Map;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.ENRICHED_HASH_KEY_PREFIX;
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SAFE_STORAGE_PREFIX;
@@ -26,6 +29,7 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     public static final String COL_PDF_SHA256 = "pdfSha256";
     public static final String COL_PDF_DATE = "pdfDate";
     public static final String COL_ARCHIVEFILEKEY = "archiveFileKey";
+    public static final String COL_RECEIVED_SAFESTORAGE_EVENT = "receivedSafeStorageEvent";
 
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_METADATA)}))
     private CON020EnrichedEntityMetadata metadata;
@@ -45,6 +49,8 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
     private Instant pdfDate;
     @Getter(onMethod = @__({@DynamoDbAttribute(COL_ARCHIVEFILEKEY)}))
     private String archiveFileKey;
+    @Getter(onMethod = @__({@DynamoDbAttribute(COL_RECEIVED_SAFESTORAGE_EVENT)}))
+    private Boolean receivedSafeStorageEvent;
 
     public static String buildHashKeyForCon020EnrichedEntity(String archiveFileKey, String sendRequestId, String registeredLetterCode) {
         return ENRICHED_HASH_KEY_PREFIX + removePrefixFromArchiveFileKey(archiveFileKey) + "_" + sendRequestId + "_" + registeredLetterCode;
@@ -52,5 +58,23 @@ public class CON020EnrichedEntity extends CON020BaseEntity{
 
     private static String removePrefixFromArchiveFileKey(String archiveFileKey) {
         return archiveFileKey.replace(SAFE_STORAGE_PREFIX, "");
+    }
+
+    private static final TableSchema<CON020EnrichedEntity> SCHEMA =
+            TableSchema.fromBean(CON020EnrichedEntity.class);
+
+    /**
+     * Converte l'entity CON020EnrichedEntity in una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB.
+     */
+    public static Map<String, AttributeValue> con020EnrichedEntityToAttributeValueMap(CON020EnrichedEntity p) {
+        return SCHEMA.itemToMap(p, true);
+    }
+
+    /**
+     * Converte una mappa {@code Map<String, AttributeValue>} utilizzata da DynamoDB in una entity CON020EnrichedEntity.
+     */
+    public static CON020EnrichedEntity attributeValueMapToCON020EnrichedEntity(Map<String, AttributeValue> item) {
+        if (item == null || item.isEmpty()) return null;
+        return SCHEMA.mapToItem(item);
     }
 }

@@ -175,4 +175,18 @@ public class PaperEventEnricherUtils {
         return CON020EnrichedEntity.buildHashKeyForCon020EnrichedEntity(archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
     }
 
+    public static CON020EnrichedEntity createEnricherEntityForSafeStorageEvent(String con020EnrichedHashKey) {
+        CON020EnrichedEntity con020EnrichedEntity = new CON020EnrichedEntity();
+        Instant now = Instant.now();
+        con020EnrichedEntity.setHashKey(con020EnrichedHashKey);
+        con020EnrichedEntity.setSortKey(SORT_KEY);
+        con020EnrichedEntity.setEntityName(ENRICHED_ENTITY_NAME);
+        con020EnrichedEntity.setRecordCreationTime(now);
+        con020EnrichedEntity.setLastModificationTime(now);
+        con020EnrichedEntity.setMetadataPresent(Boolean.FALSE);
+        con020EnrichedEntity.setTtl(now.plus(365, ChronoUnit.DAYS).toEpochMilli());
+
+        return con020EnrichedEntity;
+    }
+
 }
