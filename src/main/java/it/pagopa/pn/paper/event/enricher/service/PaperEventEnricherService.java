@@ -81,7 +81,7 @@ public class PaperEventEnricherService {
     }
 
     private Flux<String> extractUploadAndUpdates(Path path, Map<String, IndexData> indexDataMap, String archiveFileKey, FileCounter fileCounter){
-        return fileService.extractFileFromArchive(path, indexDataMap, fileCounter)
+        return fileService.extractFileFromArchive(path, indexDataMap, fileCounter, archiveFileKey)
                 .collectList()
                 .doFinally(fileDetails -> fileService.deleteFileTmp(path))
                 .flatMapMany(fileDetails -> updateEnrichedEntities(fileDetails, indexDataMap, archiveFileKey, fileCounter));
@@ -98,7 +98,7 @@ public class PaperEventEnricherService {
     private Mono<String> updatePrintedPdf(FileDetail fileDetail, Map<String, IndexData> indexDataMap, String archiveFileKey) {
         IndexData indexData = indexDataMap.get(fileDetail.getFilename());
         if (Objects.nonNull(indexData)) {
-            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), fileDetail.getSha256(), archiveFileKey, indexData.getRequestId(), indexData.getRegisteredLetterCode());
+            CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForPrintedPdf(fileDetail.getFileKey(), fileDetail.getSha256(),fileDetail.getCon020EnrichedHashKey(), archiveFileKey);
             return con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF)
                     .map(CON020BaseEntity::getHashKey)
                     .doOnError(throwable -> log.error("Error during update Item: {}", throwable.getMessage(), throwable));

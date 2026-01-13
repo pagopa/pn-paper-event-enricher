@@ -52,7 +52,7 @@ class SafeStorageServiceTest {
         when(uploadDownloadClient.uploadContent(eq(content), any(FileCreationResponse.class), eq(sha256)))
                 .thenReturn(Mono.just("fileKey"));
 
-        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256))
+        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, "hashKey"))
                 .expectNext("fileKey")
                 .verifyComplete();
     }
@@ -65,7 +65,7 @@ class SafeStorageServiceTest {
         when(pnSafeStorageClient.createFile(any(FileCreationRequest.class), eq(sha256)))
                 .thenReturn(Mono.error(new RuntimeException("Creation failed")));
 
-        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256))
+        StepVerifier.create(safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, "hashKey"))
                 .expectError(RuntimeException.class)
                 .verify();
     }

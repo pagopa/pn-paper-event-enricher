@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity.COL_ARCHIVE_FILE_KEY;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.BIN;
 import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.SAFE_STORAGE;
 import static org.mockito.Mockito.*;
@@ -165,7 +166,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(fileService.downloadFile("validArchiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
         FileDetail fileDetail = FileDetail.builder().fileKey("fileKey").filename("filename.pdf").build();
-        Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any())).thenReturn(Flux.just(fileDetail));
+        Mockito.when(fileService.extractFileFromArchive(eq(path), any(), any(), any())).thenReturn(Flux.just(fileDetail));
         doNothing().when(fileService).deleteFileTmp(any());
         Mockito.when(con020EnricherDao.update(any(), eq(UpdateTypeEnum.PDF))).thenReturn(Mono.just(new CON020EnrichedEntity()));
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
@@ -224,7 +225,7 @@ class PaperEventEnricherServiceTest {
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.just(mock(CON020ArchiveEntity.class)));
         Mockito.when(fileService.downloadFile("archiveFileKey", path)).thenReturn(Flux.empty());
         Mockito.when(fileService.extractFileFromBin(path)).thenReturn(Mono.just(path));
-        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0))).thenReturn(Flux.empty());
+        Mockito.when(fileService.extractFileFromArchive(path, new HashMap<>(), new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0), "hashKey")).thenReturn(Flux.empty());
         Mockito.when(con020ArchiveDao.updateIfExists(any(CON020ArchiveEntity.class))).thenReturn(Mono.error(new RuntimeException("Update error")));
 
         Mono<CON020ArchiveEntity> result = paperEventEnricherService.handlePaperEventEnricherEvent(payload);

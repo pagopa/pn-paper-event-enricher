@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.*;
@@ -22,8 +24,8 @@ public class SafeStorageService {
     private final PnSafeStorageClient pnSafeStorageClient;
     private final UploadDownloadClient uploadDownloadClient;
 
-    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256) {
-        FileCreationRequest fileCreationRequestDto = buildFileCreationRequest();
+    public Mono<String> callSafeStorageCreateFileAndUpload(byte[] content, String sha256, String con020EnrichedHashKey) {
+        FileCreationRequest fileCreationRequestDto = buildFileCreationRequest(con020EnrichedHashKey);
         return pnSafeStorageClient.createFile(fileCreationRequestDto, sha256)
                 .flatMap(fileCreationResponseDto -> uploadDownloadClient.uploadContent(content, fileCreationResponseDto, sha256)
                         .doOnNext(response -> log.info("file [{}] uploaded", fileCreationResponseDto.getKey()))
@@ -34,11 +36,12 @@ public class SafeStorageService {
                 });
     }
 
-    private FileCreationRequest buildFileCreationRequest() {
+    private FileCreationRequest buildFileCreationRequest(String con020EnrichedHashKey) {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         fileCreationRequest.setContentType("application/pdf");
         fileCreationRequest.setStatus(ATTACHED);
         fileCreationRequest.setDocumentType(DOCUMENT_TYPE);
+        fileCreationRequest.setTags(Map.of("con020EnrichedHashKey", List.of(con020EnrichedHashKey)));
         return fileCreationRequest;
     }
 

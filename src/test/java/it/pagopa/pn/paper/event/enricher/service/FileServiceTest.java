@@ -99,9 +99,9 @@ class FileServiceTest {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.zip");
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any(), any())).thenReturn(Mono.just("key"));
 
-        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter, "hashKey");
 
         StepVerifier.create(result).expectNextCount(1).verifyComplete();
     }
@@ -112,9 +112,9 @@ class FileServiceTest {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.zip");
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any(), any())).thenReturn(Mono.just("key"));
 
-        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter,"hashKey");
 
         StepVerifier.create(result).expectNextCount(1).verifyComplete();
     }
@@ -124,9 +124,9 @@ class FileServiceTest {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/archive.7z");
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any(), any())).thenReturn(Mono.just("key"));
 
-        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter, "hashKey");
 
         StepVerifier.create(result).expectNextCount(1).verifyComplete();
     }
@@ -136,9 +136,9 @@ class FileServiceTest {
         Map<String, IndexData> indexDataMap = new HashMap<>();
         FileCounter counter = new FileCounter(new AtomicInteger(0), new AtomicInteger(0), 0);
         Path path = Paths.get("src/test/resources/test.txt");
-        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any())).thenReturn(Mono.just("key"));
+        when(safeStorageService.callSafeStorageCreateFileAndUpload(any(), any(), any())).thenReturn(Mono.just("key"));
 
-        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter);
+        Flux<FileDetail> result = fileService.extractFileFromArchive(path, indexDataMap, counter, "hashKey");
 
         StepVerifier.create(result)
                 .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&

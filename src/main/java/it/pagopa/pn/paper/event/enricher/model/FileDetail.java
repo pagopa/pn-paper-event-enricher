@@ -10,6 +10,7 @@ import java.io.InputStream;
 @Getter
 @Setter
 public class FileDetail {
+    private String con020EnrichedHashKey;
     private String requestId;
     private String registeredLetterCode;
     private String filename;
