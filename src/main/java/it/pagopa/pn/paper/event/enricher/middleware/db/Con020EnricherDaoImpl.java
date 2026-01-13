@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.utils.StringUtils;
 
@@ -17,11 +18,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SORT_KEY;
-import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.METADATA;
-import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.PDF;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020BaseEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity.*;
 import static it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata.*;
+import static it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum.*;
 
 @Slf4j
 @Repository
@@ -34,25 +34,16 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
     public static final String QUERY_IF_NOT_EXISTS = " = if_not_exists(";
 
     @Override
-    public Mono<CON020EnrichedEntity> updateMetadata(CON020EnrichedEntity entity) {
-        UpdateItemRequest.Builder builder = UpdateItemRequest.builder()
-                .key(buildDynamoKey(entity.getHashKey(), SORT_KEY))
-                .updateExpression(constructUpdateExpression(UpdateTypeEnum.METADATA))
+    public Mono<CON020EnrichedEntity> update(CON020EnrichedEntity entity, UpdateTypeEnum type) {
+        var req = UpdateItemRequest.builder()
+                .key(buildDynamoKey(entity.getHashKey()))
+                .returnValues(ReturnValue.ALL_NEW)
+                .updateExpression(constructUpdateExpression(type))
                 .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
-                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, UpdateTypeEnum.METADATA));
+                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, type));
 
-        return updateItem(builder).thenReturn(entity);
-    }
-
-    @Override
-    public Mono<CON020EnrichedEntity> updatePrintedPdf(CON020EnrichedEntity entity) {
-        UpdateItemRequest.Builder builder = UpdateItemRequest.builder()
-                .key(buildDynamoKey(entity.getHashKey(), SORT_KEY))
-                .updateExpression(constructUpdateExpression(PDF))
-                .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
-                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, PDF));
-
-        return updateItem(builder).thenReturn(entity);
+        return updateItem(req)
+                .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToCON020EnrichedEntity(updateItemResponse.attributes()));
     }
 
     protected String constructUpdateExpression(UpdateTypeEnum updateType) {
@@ -74,15 +65,16 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
             stringBuilder.append(COL_METADATA).append(" = :").append(COL_METADATA).append(", ");
             stringBuilder.append(COL_STATUS_DESCRIPTION).append(" = :").append(COL_STATUS_DESCRIPTION).append(", ");
             stringBuilder.append(COL_PRODUCT_TYPE).append(" = :").append(COL_PRODUCT_TYPE);
-
+        } else if(SAFE_STORAGE.equals(updateType)) {
+            stringBuilder.append(COL_RECEIVED_SAFESTORAGE_EVENT).append(" = :").append(COL_RECEIVED_SAFESTORAGE_EVENT);
         }
         return stringBuilder.toString();
     }
 
-    protected Map<String, AttributeValue> buildDynamoKey(String hashKey, String sortKey) {
+    protected Map<String, AttributeValue> buildDynamoKey(String hashKey) {
         Map<String, AttributeValue> key = new HashMap<>();
         key.put(COL_HASH_KEY, AttributeValue.builder().s(hashKey).build());
-        key.put(COL_SORT_KEY, AttributeValue.builder().s(sortKey).build());
+        key.put(COL_SORT_KEY, AttributeValue.builder().s(SORT_KEY).build());
         return key;
     }
 
@@ -107,6 +99,8 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
             attributeValueMap.put(":" + COL_METADATA, AttributeValue.builder().m(constructMetadataAttributeValuesMap(entity.getMetadata())).build());
             attributeValueMap.put(":" + COL_STATUS_DESCRIPTION, AttributeValue.builder().s(entity.getStatusDescription()).build());
             attributeValueMap.put(":" + COL_PRODUCT_TYPE, AttributeValue.builder().s(entity.getProductType()).build());
+        } else if(SAFE_STORAGE.equals(updateType)) {
+            attributeValueMap.put(":" + COL_RECEIVED_SAFESTORAGE_EVENT, AttributeValue.builder().bool(true).build());
         }
 
         return attributeValueMap;

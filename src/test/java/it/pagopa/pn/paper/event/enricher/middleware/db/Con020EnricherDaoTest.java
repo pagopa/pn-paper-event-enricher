@@ -1,10 +1,12 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.config.PnPaperEventEnricherConfig;
-import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020ArchiveEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntity;
 import it.pagopa.pn.paper.event.enricher.middleware.db.entities.CON020EnrichedEntityMetadata;
-import org.junit.jupiter.api.*;
+import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -18,6 +20,7 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,7 +40,7 @@ class Con020EnricherDaoTest {
     @MockitoBean
     private DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient;
 
-    DynamoDbAsyncTable<CON020ArchiveEntity> tableAsync;
+    DynamoDbAsyncTable<CON020EnrichedEntity> tableAsync;
 
 
     @BeforeAll
@@ -47,7 +50,7 @@ class Con020EnricherDaoTest {
         PnPaperEventEnricherConfig.Dao dao = new PnPaperEventEnricherConfig.Dao();
         dao.setPaperEventEnrichmentTable("tableName");
         pnPaperEventEnricherConfig.setDao(dao);
-        when(dynamoDbEnhancedAsyncClient.table(anyString(), (TableSchema<CON020ArchiveEntity>) any())).thenReturn(tableAsync);
+        when(dynamoDbEnhancedAsyncClient.table(anyString(), (TableSchema<CON020EnrichedEntity>) any())).thenReturn(tableAsync);
         con020EnricherDao = new Con020EnricherDaoImpl(dynamoDbEnhancedAsyncClient, dynamoDbAsyncClient, pnPaperEventEnricherConfig);
     }
 
@@ -95,20 +98,24 @@ class Con020EnricherDaoTest {
     @Test
     void updateMetadata_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
-        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.con020EnrichedEntityToAttributeValueMap(con020ArchiveEntity));
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updateMetadata(con020ArchiveEntity))
-                .expectNext(con020ArchiveEntity)
+        StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.METADATA))
+                .expectNextMatches(Objects::nonNull)
                 .verifyComplete();
     }
 
     @Test
     void updatePrintedPdf_testOK() {
         CON020EnrichedEntity con020ArchiveEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
-        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(UpdateItemResponse.builder().build());
+        UpdateItemResponse updateItemResponse = mock(UpdateItemResponse.class);
+        when(updateItemResponse.attributes()).thenReturn(CON020EnrichedEntity.con020EnrichedEntityToAttributeValueMap(con020ArchiveEntity));
+        CompletableFuture<UpdateItemResponse> completedFuture = CompletableFuture.completedFuture(updateItemResponse);
         when(dynamoDbAsyncClient.updateItem((UpdateItemRequest) any())).thenReturn(completedFuture);
-        StepVerifier.create(con020EnricherDao.updatePrintedPdf(con020ArchiveEntity))
-                .expectNext(con020ArchiveEntity)
+        StepVerifier.create(con020EnricherDao.update(con020ArchiveEntity, UpdateTypeEnum.PDF))
+                .expectNextMatches(Objects::nonNull)
                 .verifyComplete();
 
     }

@@ -11,6 +11,7 @@ import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 @Slf4j
 public abstract class BaseDao<T> {
@@ -38,10 +39,9 @@ public abstract class BaseDao<T> {
                 });
     }
 
-    protected Mono<T> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
+    protected Mono<UpdateItemResponse> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
         UpdateItemRequest updateItemRequest = updateItemRequestBuilder.tableName(tableName).build();
-        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest))
-                .then(Mono.empty());
+        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest));
     }
 
     protected Mono<T> putItem(PutItemEnhancedRequest<T> request, String archiveFileKey) {
