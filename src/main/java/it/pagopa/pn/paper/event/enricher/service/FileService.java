@@ -190,8 +190,6 @@ public class FileService {
         try {
             String withoutSafeStoragePrefix = prefix.replace(SAFE_STORAGE_PREFIX, "");
             return Files.createTempFile(TMP_FILE_PREFIX + withoutSafeStoragePrefix, suffix);
-//            ClassPathResource classPathResource = new ClassPathResource("/");
-//            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, classPathResource.getFile()).toPath();
         } catch (IOException e) {
             throw new PaperEventEnricherException(e.getMessage(), 500, UNABLE_TO_CREATE_TMP_FILE);
         }
