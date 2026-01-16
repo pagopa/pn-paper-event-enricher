@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.StreamSupport;
 
+import static it.pagopa.pn.paper.event.enricher.constant.PaperEventEnricherConstant.SAFE_STORAGE_PREFIX;
 import static it.pagopa.pn.paper.event.enricher.exception.PnPaperEventEnricherExceptionConstant.*;
 import static it.pagopa.pn.paper.event.enricher.model.FileTypeEnum.*;
 import static it.pagopa.pn.paper.event.enricher.utils.FileUtils.*;
@@ -187,7 +188,8 @@ public class FileService {
 
     public Path createTmpFile(String prefix, String suffix) {
         try {
-            return Files.createTempFile(TMP_FILE_PREFIX + prefix, suffix);
+            String withoutSafeStoragePrefix = prefix.replace(SAFE_STORAGE_PREFIX, "");
+            return Files.createTempFile(TMP_FILE_PREFIX + withoutSafeStoragePrefix, suffix);
 //            ClassPathResource classPathResource = new ClassPathResource("/");
 //            return File.createTempFile(TMP_FILE_PREFIX + prefix, suffix, classPathResource.getFile()).toPath();
         } catch (IOException e) {
