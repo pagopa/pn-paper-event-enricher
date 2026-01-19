@@ -154,7 +154,7 @@ public class FileService {
             String sha256 = Sha256Handler.computeSha256(content);
             String con020EnrichedHashKey = computeCon020EnrichedHashKey(indexDataMap, name, archiveFileKey);
             return safeStorageService.callSafeStorageCreateFileAndUpload(content, sha256, con020EnrichedHashKey)
-                    .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).build());
+                    .map(fileKey -> FileDetail.builder().filename(name).fileKey(fileKey).sha256(sha256).con020EnrichedHashKey(con020EnrichedHashKey).build());
         } else {
             return Mono.just(FileDetail.builder().filename(name).build());
         }
