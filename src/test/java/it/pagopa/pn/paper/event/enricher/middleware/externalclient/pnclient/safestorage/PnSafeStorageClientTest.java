@@ -40,7 +40,7 @@ class PnSafeStorageClientTest {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         FileCreationResponse fileCreationResponse = new FileCreationResponse();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileUploadApi.createFile("cxId", PaperEventEnricherConstant.X_CHECKSUM, "checksum", fileCreationRequest))
+        when(fileUploadApi.createFile("cxId", "checksum", PaperEventEnricherConstant.X_CHECKSUM, fileCreationRequest))
                 .thenReturn(Mono.just(fileCreationResponse));
 
         Mono<FileCreationResponse> result = pnSafeStorageClient.createFile(fileCreationRequest, "checksum");
@@ -54,7 +54,7 @@ class PnSafeStorageClientTest {
     void createFile_error() {
         FileCreationRequest fileCreationRequest = new FileCreationRequest();
         when(pnPaperEventEnricherConfig.getCxId()).thenReturn("cxId");
-        when(fileUploadApi.createFile("cxId", PaperEventEnricherConstant.X_CHECKSUM, "checksum", fileCreationRequest))
+        when(fileUploadApi.createFile("cxId", "checksum", PaperEventEnricherConstant.X_CHECKSUM, fileCreationRequest))
                 .thenReturn(Mono.error(new WebClientResponseException(500, "Internal Server Error", null, null, null)));
 
         Mono<FileCreationResponse> result = pnSafeStorageClient.createFile(fileCreationRequest, "checksum");
