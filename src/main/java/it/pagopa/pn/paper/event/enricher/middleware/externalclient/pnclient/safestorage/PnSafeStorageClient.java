@@ -34,7 +34,7 @@ public class PnSafeStorageClient extends BaseClient {
 
         log.debug(String.format("Req params: %s", fileCreationRequestDto.getContentType()));
         log.debug(String.format("storage id %s ", this.pnPaperEventEnricherConfig.getCxId()));
-        return this.fileUploadApi.createFile(this.pnPaperEventEnricherConfig.getCxId(), PaperEventEnricherConstant.X_CHECKSUM, checksum, fileCreationRequestDto)
+        return this.fileUploadApi.createFile(this.pnPaperEventEnricherConfig.getCxId(), checksum, PaperEventEnricherConstant.X_CHECKSUM, fileCreationRequestDto)
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.error(ex.getResponseBodyAsString());
                     return Mono.error(new PaperEventEnricherException("DOCUMENT_UPLOAD_ERROR", 500, "DOCUMENT_UPLOAD_ERROR"));
