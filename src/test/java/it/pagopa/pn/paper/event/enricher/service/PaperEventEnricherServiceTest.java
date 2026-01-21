@@ -238,40 +238,15 @@ class PaperEventEnricherServiceTest {
 
     @Test
     void handleSafeStorageEventWithValidTags() {
-        Map<String, List<String>> tags = Map.of("con020EnrichedHashKey", List.of("validArchiveFileKey"));
         CON020EnrichedEntity enrichedEntity = mock(CON020EnrichedEntity.class);
 
         Mockito.when(con020EnricherDao.update(any(), eq(SAFE_STORAGE)))
                 .thenReturn(Mono.just(enrichedEntity));
 
-        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(tags);
+        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent("validArchiveFileKey", "fileKey");
 
         StepVerifier.create(result)
                 .expectNext(enrichedEntity)
                 .verifyComplete();
-    }
-
-    @Test
-    void handleSafeStorageEventWithMissingTags() {
-        Map<String, List<String>> tags = new HashMap<>();
-
-        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(tags);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
-                        throwable.getMessage().equals("con020EnrichedHashKey tag is not present"))
-                .verify();
-    }
-
-    @Test
-    void handleSafeStorageEventWithNullTags() {
-        Map<String, List<String>> tags = null;
-
-        Mono<CON020EnrichedEntity> result = paperEventEnricherService.handleSafeStorageEvent(tags);
-
-        StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof PaperEventEnricherException &&
-                        throwable.getMessage().equals("con020EnrichedHashKey tag is not present"))
-                .verify();
     }
 }

@@ -38,8 +38,6 @@ public class PaperEventEnricherService {
     private final FileService fileService;
     private final PnPaperEventEnricherConfig config;
 
-    private static final String CON020ENRICHED_HASH_KEY = "con020EnrichedHashKey";
-
     public Mono<Void> handleInputEventMessage(PaperEventEnricherInputEvent.Payload payload) {
         return Mono.just(createArchiveEntity(payload.getAnalogMail()))
                 .flatMap(con020ArchiveEntity -> con020ArchiveDao.putIfAbsent(con020ArchiveEntity)
@@ -107,14 +105,10 @@ public class PaperEventEnricherService {
         return Mono.just(fileDetail.getFilename());
     }
 
-    public Mono<CON020EnrichedEntity> handleSafeStorageEvent(Map<String, List<String>> tags) {
-        if(CollectionUtils.isEmpty(tags) || !tags.containsKey(CON020ENRICHED_HASH_KEY)){
-            return Mono.error(new PaperEventEnricherException("con020EnrichedHashKey tag is not present", 400, INVALID_SAFE_STORAGE_EVENT));
-        }
-        String con020EnrichedHashKey = tags.get(CON020ENRICHED_HASH_KEY).getFirst();
+    public Mono<CON020EnrichedEntity> handleSafeStorageEvent(String con020EnrichedHashKey , String fileKey) {
         CON020EnrichedEntity con020EnrichedEntity = createEnricherEntityForSafeStorageEvent(con020EnrichedHashKey);
-
         return con020EnricherDao.update(con020EnrichedEntity, SAFE_STORAGE)
+                .doOnNext(entity -> log.info("Updated CON020EnrichedEntity for Safe Storage event with con020EnrichedHashKey tag: {} and fileKey: {}", con020EnrichedHashKey, fileKey))
                 .doOnError(throwable -> log.error("Unexpected error while handling Safe Storage event: {}", throwable.getMessage(), throwable));
     }
 }
