@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,14 +35,15 @@ public class SafeStorageEventHandlerTest {
 
         FileDownloadResponse inputMessage = new FileDownloadResponse();
         inputMessage.setKey("requestId");
-        inputMessage.setTags(Map.of("archiveFileKey", List.of("archiveFileKeyValue")));
+        inputMessage.setTags(Map.of("con020EnrichedHashKey", List.of("archiveFileKeyValue")));
 
-        when(paperEventEnricherService.handleSafeStorageEvent(any())).thenReturn(Mono.empty());
+        when(paperEventEnricherService.handleSafeStorageEvent(any(), anyString())).thenReturn(Mono.empty());
 
         // When
         safeStorageEventHandler.safeStorageConsumer(inputMessage, new HashMap<>());
 
-        Assertions.assertEquals("requestId", MDC.get(MDCUtils.MDC_PN_CTX_REQUEST_ID));
+        Assertions.assertEquals("archiveFileKeyValue", MDC.get(MDCUtils.MDC_PN_CTX_REQUEST_ID));
+        Assertions.assertEquals("requestId", MDC.get(MDCUtils.MDC_PN_CTX_SAFESTORAGE_FILEKEY));
     }
 
     @Test
@@ -49,9 +51,9 @@ public class SafeStorageEventHandlerTest {
 
         FileDownloadResponse inputMessage = new FileDownloadResponse();
         inputMessage.setKey("requestId");
-        inputMessage.setTags(Map.of("archiveFileKey", List.of("archiveFileKeyValue")));
+        inputMessage.setTags(Map.of("con020EnrichedHashKey", List.of("archiveFileKeyValue")));
 
-        when(paperEventEnricherService.handleSafeStorageEvent(any())).thenReturn(Mono.error(new PaperEventEnricherException("error", 400, "error")));
+        when(paperEventEnricherService.handleSafeStorageEvent(any(), anyString())).thenReturn(Mono.error(new PaperEventEnricherException("error", 400, "error")));
 
         Executable executable = () -> safeStorageEventHandler.safeStorageConsumer(inputMessage, new HashMap<>());
 
