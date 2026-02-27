@@ -43,18 +43,18 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
 
         Map<String, AttributeValue> values = constructexpressionAttributeValuesMap(entity, type);
 
-        if(SAFE_STORAGE.equals(type)){
-            req.conditionExpression(buildEqualsConditionExpression(COL_RECEIVED_SAFESTORAGE_EVENT));
+        if (SAFE_STORAGE.equals(type) || METADATA.equals(type)) {
             values.put(":newValue", AttributeValue.builder().bool(true).build());
-            req.expressionAttributeValues(values);
-        } else if(PDF.equals(type)){
-            req.conditionExpression(buildExistingConditionExpression(false,COL_PRINTED_PDF));
-            req.expressionAttributeValues(values);
-        } else if(METADATA.equals(type)){
-            req.conditionExpression(buildEqualsConditionExpression(COL_METADATA_PRESENT));
-            values.put(":newValue", AttributeValue.builder().bool(true).build());
-            req.expressionAttributeValues(values);
         }
+
+        if (SAFE_STORAGE.equals(type)) {
+            req.conditionExpression(buildEqualsConditionExpression(COL_RECEIVED_SAFESTORAGE_EVENT));
+        } else if (PDF.equals(type)) {
+            req.conditionExpression(buildExistingConditionExpression(false, COL_PRINTED_PDF));
+        } else if (METADATA.equals(type)) {
+            req.conditionExpression(buildEqualsConditionExpression(COL_METADATA_PRESENT));
+        }
+        req.expressionAttributeValues(values);
 
         return updateItem(req)
                 .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToCON020EnrichedEntity(updateItemResponse.attributes()));
