@@ -7,6 +7,7 @@ import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -26,7 +27,6 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setSortKey(sortKey);
         con020EnrichedEntity.setLastModificationTime(Instant.now());
         con020EnrichedEntity.setRecordCreationTime(Instant.now());
-        con020EnrichedEntity.setMetadataPresent(true);
         con020EnrichedEntity.setProductType("AR");
         con020EnrichedEntity.setStatusDescription("Affido conservato");
         con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
@@ -56,23 +56,26 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setRecordCreationTime(Instant.now());
         con020EnrichedEntity.setArchiveFileKey("archiveFileKey");
         con020EnrichedEntity.setTtl(Instant.now().plus(365, ChronoUnit.DAYS).toEpochMilli());
-        con020EnrichedEntity.setPrintedPdf("printedPdf");
         return con020EnrichedEntity;
     }
 
     @Test
-    void updateMetadata_testOK() {
+    void updateMetadata_test() {
         CON020EnrichedEntity con020EnrichedEntity = createEnrichedEntityForMetadata(uuid, "sortKey");
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.METADATA).block();
         Assertions.assertNotNull(updatedEntity);
         Assertions.assertTrue(updatedEntity.getMetadataPresent());
+        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.METADATA).block());
     }
 
     @Test
     void updatePrintedPdf_testOK() {
         CON020EnrichedEntity con020EnrichedEntity = createEnrichedEntityForPrintedPdf(uuid, "sortKey");
+        con020EnrichedEntity.setPrintedPdf("printedPDF");
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF).block();
         Assertions.assertNotNull(updatedEntity);
+        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF).block());
+
     }
 
     @Test
@@ -81,6 +84,8 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.SAFE_STORAGE).block();
         Assertions.assertNotNull(updatedEntity);
         Assertions.assertTrue(updatedEntity.getReceivedSafeStorageEvent());
+        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.SAFE_STORAGE).block());
+
     }
 
 }

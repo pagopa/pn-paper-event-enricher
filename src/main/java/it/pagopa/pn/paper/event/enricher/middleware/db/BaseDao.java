@@ -61,6 +61,10 @@ public abstract class BaseDao<T> {
         return "attribute_not_exists(" + attribute + ")";
     }
 
+    protected String buildEqualsConditionExpression(String attribute) {
+        return "attribute_not_exists("+ attribute +") OR "+ attribute +" <> :newValue";
+    }
+
 
 
 }
