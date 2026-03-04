@@ -39,8 +39,22 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
                 .key(buildDynamoKey(entity.getHashKey()))
                 .returnValues(ReturnValue.ALL_NEW)
                 .updateExpression(constructUpdateExpression(type))
-                .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL))
-                .expressionAttributeValues(constructexpressionAttributeValuesMap(entity, type));
+                .expressionAttributeNames(Map.of("#" + COL_TTL, COL_TTL));
+
+        Map<String, AttributeValue> values = constructexpressionAttributeValuesMap(entity, type);
+
+        if (SAFE_STORAGE.equals(type) || METADATA.equals(type)) {
+            values.put(":newValue", AttributeValue.builder().bool(true).build());
+        }
+
+        if (SAFE_STORAGE.equals(type)) {
+            req.conditionExpression(buildEqualsConditionExpression(COL_RECEIVED_SAFESTORAGE_EVENT));
+        } else if (PDF.equals(type)) {
+            req.conditionExpression(buildExistingConditionExpression(false, COL_PRINTED_PDF));
+        } else if (METADATA.equals(type)) {
+            req.conditionExpression(buildEqualsConditionExpression(COL_METADATA_PRESENT));
+        }
+        req.expressionAttributeValues(values);
 
         return updateItem(req)
                 .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToCON020EnrichedEntity(updateItemResponse.attributes()));
