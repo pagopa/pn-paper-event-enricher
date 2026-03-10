@@ -41,7 +41,11 @@ public abstract class BaseDao<T> {
 
     protected Mono<UpdateItemResponse> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
         UpdateItemRequest updateItemRequest = updateItemRequestBuilder.tableName(tableName).build();
-        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest));
+        return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest))
+                .onErrorResume(ConditionalCheckFailedException.class, e -> {
+                    log.warn("Conditional check failed: {}", e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     protected Mono<T> putItem(PutItemEnhancedRequest<T> request, String archiveFileKey) {
