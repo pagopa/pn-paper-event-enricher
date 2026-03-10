@@ -4,8 +4,8 @@
     "description": ".",
     "main": "load-test-con020.js",
     "dependencies": {
-        "@aws-sdk/client-sqs": "^3.675.0",
-        "@aws-sdk/credential-provider-ini": "^3.675.0",
+        "@aws-sdk/client-sqs": "3.995.0",
+        "@aws-sdk/credential-provider-ini": "3.995.0",
         "aws-sdk": "^2.1691.0",
         "axios": "^1.0.0",
         "fast-csv": "^5.0.1"

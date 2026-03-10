@@ -10,8 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.654.0",
-    "@aws-sdk/credential-provider-sso": "^3.654.0",
-    "@aws-sdk/lib-dynamodb": "^3.654.0"
+    "@aws-sdk/client-dynamodb": "3.995.0",
+    "@aws-sdk/credential-provider-sso": "3.995.0",
+    "@aws-sdk/lib-dynamodb": "3.995.0"
   }
 }
