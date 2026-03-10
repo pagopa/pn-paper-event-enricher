@@ -44,7 +44,7 @@ public abstract class BaseDao<T> {
         UpdateItemRequest updateItemRequest = updateItemRequestBuilder.tableName(tableName).build();
         return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest))
                 .onErrorResume(ConditionalCheckFailedException.class, e -> {
-                    log.warn("EnricherEntity with pk: [{}] already updated for on {} - Conditional check failed: {}",pk, updateTypeEnum,  e.getMessage());
+                    log.warn("EnricherEntity with hashKey: [{}] already updated for {} - Conditional check failed: {}",pk, updateTypeEnum,  e.getMessage());
                     return Mono.empty();
                 });
     }
