@@ -1,6 +1,7 @@
 package it.pagopa.pn.paper.event.enricher.middleware.db;
 
 import it.pagopa.pn.paper.event.enricher.exception.PaperEventEnricherException;
+import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
@@ -39,11 +40,11 @@ public abstract class BaseDao<T> {
                 });
     }
 
-    protected Mono<UpdateItemResponse> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder) {
+    protected Mono<UpdateItemResponse> updateItem(UpdateItemRequest.Builder updateItemRequestBuilder, UpdateTypeEnum updateTypeEnum, String pk) {
         UpdateItemRequest updateItemRequest = updateItemRequestBuilder.tableName(tableName).build();
         return Mono.fromFuture(dynamoDbAsyncClient.updateItem(updateItemRequest))
                 .onErrorResume(ConditionalCheckFailedException.class, e -> {
-                    log.warn("Conditional check failed: {}", e.getMessage());
+                    log.warn("EnricherEntity with pk: [{}] already updated for on {} - Conditional check failed: {}",pk, updateTypeEnum,  e.getMessage());
                     return Mono.empty();
                 });
     }

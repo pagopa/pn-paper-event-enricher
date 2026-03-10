@@ -56,7 +56,7 @@ public class Con020EnricherDaoImpl extends BaseDao<CON020EnrichedEntity> impleme
         }
         req.expressionAttributeValues(values);
 
-        return updateItem(req)
+        return updateItem(req, type, entity.getHashKey())
                 .map(updateItemResponse -> CON020EnrichedEntity.attributeValueMapToCON020EnrichedEntity(updateItemResponse.attributes()));
     }
 
