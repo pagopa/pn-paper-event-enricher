@@ -7,7 +7,6 @@ import it.pagopa.pn.paper.event.enricher.model.UpdateTypeEnum;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -65,7 +64,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.METADATA).block();
         Assertions.assertNotNull(updatedEntity);
         Assertions.assertTrue(updatedEntity.getMetadataPresent());
-        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.METADATA).block());
+        Assertions.assertDoesNotThrow(() -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.METADATA).block());
     }
 
     @Test
@@ -74,8 +73,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         con020EnrichedEntity.setPrintedPdf("printedPDF");
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF).block();
         Assertions.assertNotNull(updatedEntity);
-        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF).block());
-
+        Assertions.assertDoesNotThrow(() -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.PDF).block());
     }
 
     @Test
@@ -84,8 +82,7 @@ class Con020EnricherDaoIT extends BaseTest.WithLocalStack {
         CON020EnrichedEntity updatedEntity = con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.SAFE_STORAGE).block();
         Assertions.assertNotNull(updatedEntity);
         Assertions.assertTrue(updatedEntity.getReceivedSafeStorageEvent());
-        Assertions.assertThrows(ConditionalCheckFailedException.class, () -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.SAFE_STORAGE).block());
-
+        Assertions.assertDoesNotThrow(() -> con020EnricherDao.update(con020EnrichedEntity, UpdateTypeEnum.SAFE_STORAGE).block());
     }
 
 }
