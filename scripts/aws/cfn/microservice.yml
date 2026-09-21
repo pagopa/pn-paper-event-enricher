@@ -297,6 +297,16 @@ Parameters:
     Description: 'Value to use as base period for the custom metric (2 days)'
     Default: 172800
 
+  CpuArchitecture:
+    Type: String
+    Default: 'ARM'
+    Description: CPU architecture for the Fargate tasks
+
+  JavaToolOptions:
+    Type: String
+    Default: '-XX:MaxDirectMemorySize=1024m'
+    Description: Java tool options for the Fargate tasks
+
 Resources:
 
   PaperEventEnricherMicroservice:
@@ -338,7 +348,7 @@ Resources:
         ContainerEnvEntry16: !Sub 'PN_PAPEREVENTENRICHER_SQS_ARCHIVEQUEUESTOPTIMEOUT=${ArchiveQueueStopTimeoutMillis}'
         ContainerEnvEntry17: !Sub 'PN_PAPEREVENTENRICHER_SQS_SAFESTORAGETOPAPEREVENTENRICHERQUEUENAME=${SafeStorageToPaperEventEnricherQueueName}'
         MappedPaths: '/paper-event-enricher/*'
-        JavaToolOptions: '-XX:MaxDirectMemorySize=1024m'
+        JavaToolOptions: !Ref JavaToolOptions
         ECSClusterName: !Ref ECSClusterName
         Subnets: !Ref SubnetsIds
         VpcId: !Ref VpcId
@@ -354,6 +364,7 @@ Resources:
         AutoscalingQueueName: !Ref PnPaperEventEnricherInputQueueName
         AutoscalingThreshold: !Ref PaperEventEnrichmentAutoscalingThreshold
         EphemeralStorageValueGB: !Ref PaperEventEnricherEphemeralStorageValueGB
+        CpuArchitecture: !Ref CpuArchitecture
 
 
   PaperEventEnricherMicroserviceTaskManagedPolicy:
